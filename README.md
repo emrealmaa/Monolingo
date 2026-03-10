@@ -1,17 +1,25 @@
-# ingilizce_ogrenme_app
+# Monolingo - İngilizce Kelime Öğrenme Asistanı
 
-A new Flutter project.
+Monolingo, kullanıcıların İngilizce kelime dağarcığını geliştirmeleri için geliştirilmekte olan, oyunlaştırma (Wordle) destekli bir mobil uygulamadır.
 
-## Getting Started
+## 🚀 Proje Durumu: Geliştirme Aşaması (v0.2)
 
-This project is a starting point for a Flutter application.
+Projenin geliştirme süreci adım adım ilerletilmektedir. Şu anki aşamada kullanıcı arayüzü iskeleti ve temel navigasyon yapısı üzerinde odaklanılmıştır.
 
-A few resources to get you started if this is your first Flutter project:
+### ✅ Mevcut Tamamlanan Özellikler
+- **Kullanıcı Yönetimi:**
+  - Modern tasarımlı Giriş Yap (Login) sayfası.
+  - Yeni Kullanıcı Kaydı (Sign Up) ekranı.
+  - Şifremi Unuttum arayüzü.
+- **Navigasyon:** Uygulama içi 4 ana sekmeden oluşan (Öğren, Sözlük, Wordle, Profil) alt menü yapısı kuruldu.
+- **Profil Sayfası:** Kullanıcı bilgilerinin görüntülenebileceği temel profil sekmesi hazırlandı.
+- **Validasyon:** Giriş ve kayıt ekranlarında boş alan kontrolü gibi temel mantıksal denetimler eklendi.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### 🛠️ Bir Sonraki Aşamada Yapılacaklar
+- [ ] **Veritabanı (SQLite):** Kelime ekleme, silme ve listeleme özelliklerinin aktifleştirilmesi.
+- [ ] **Kelime Öğrenme Modülü:** Kullanıcının kendi sözlüğünü oluşturabileceği arayüz.
+- [ ] **Wordle Oyun Entegrasyonu:** Günlük kelime tahmin oyunu modülü.
+- [ ] **Dosya Yapısı:** `main.dart` dosyasındaki kodların daha düzenli bir mimari için klasörlere bölünmesi (Refactoring).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+*Geliştirici: Emre ALMA*
