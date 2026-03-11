@@ -90,6 +90,25 @@ class DbHelper {
   }
 
   // --- OYUNLAR VE ÖĞRENME ---
+
+  // AGA SENİN İSTEDİĞİN METOT BURADA (SINIFIN İÇİNE ALINDI VE TABLO İSMİ DÜZELDİ)
+  Future<Map<String, dynamic>> getRandomWordByLevel(String level) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Kelimeler', // Senin tablo adın 'Kelimeler'
+      where: 'UPPER(level) = ?',
+      whereArgs: [level.toUpperCase()],
+      orderBy: 'RANDOM()',
+      limit: 1,
+    );
+
+    if (maps.isNotEmpty) {
+      return maps.first;
+    } else {
+      return {'word': 'EMPTY', 'meaning': 'Bu seviyede kelime yok aga'};
+    }
+  }
+
   Future<List<WordModel>> rastgeleKelimeGetir(String seviye, int limit) async {
     var db = await database;
     List<Map<String, dynamic>> maps = await db.query(
@@ -221,7 +240,7 @@ class DbHelper {
     return {
       'toplam': toplam,
       'tamamlanan': tamamlanan,
-      'devam_eden': devamEden, // BURADAKİ YAZIM HATASI DÜZELDİ AGA
+      'devam_eden': devamEden,
       'asama_dagilimi': asamaDagilimi,
     };
   }

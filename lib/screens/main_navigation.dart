@@ -5,6 +5,7 @@ import 'learning.dart';
 import 'statistics.dart';
 import 'profile.dart';
 import 'zamana_karsi_oyun.dart';
+import 'wordle_unlimited_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String isim;
@@ -225,11 +226,22 @@ class OyunSecimSayfasi extends StatelessWidget {
             const SizedBox(height: 20),
             _oyunKarti(
               context,
-              baslik: "KELİME DÜELLOSU",
-              altBaslik: "Doğru anlamı seç, puanları topla!",
+              baslik: "WORDLE UNLIMITED",
+              altBaslik: "Günlük sınır yok, istediğin kadar Wordle oyna!",
               ikon: Icons.flash_on,
               renk: Colors.blueAccent,
-              onTap: () {},
+              onTap: () {
+                // AGA BURASI BAĞLANTI NOKTASI
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => WordleUnlimitedScreen(
+                      seciliSeviyeler:
+                          seciliSeviyeler, // Katalogdan gelen seviyeleri paslıyoruz
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 20),
             _oyunKarti(
