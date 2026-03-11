@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'dart:async';
-import '../models/word_model.dart'; // Import yolunu düzelttik
+import 'package:ingilizce_ogrenme_app/models/word_model.dart';
 
 class DbHelper {
   static final DbHelper _instance = DbHelper._internal();
@@ -18,31 +18,20 @@ class DbHelper {
 
   Future<Database> _initDb() async {
     String databasesPath = await getDatabasesPath();
-    String path = p.join(
-      databasesPath,
-      'monolingo_v1.db',
-    ); // DB adını güncelledik
+    String path = p.join(databasesPath, 'hafiza_kupu_v2.db');
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
-        // --- 1. STORY: KULLANICILAR (Hocanın istediği isimler) ---
         await db.execute(
-          'CREATE TABLE Users (UserID INTEGER PRIMARY KEY AUTOINCREMENT, UserName TEXT, Password TEXT, Email TEXT UNIQUE)',
+          'CREATE TABLE Kullanicilar (id INTEGER PRIMARY KEY AUTOINCREMENT, isim TEXT, email TEXT UNIQUE, sifre TEXT, dogumTarihi TEXT)',
         );
 
-        // --- 2. STORY: KELİMELER (Hocanın istediği yapı + bizim algoritma) ---
         await db.execute(
-          'CREATE TABLE Words (WordID INTEGER PRIMARY KEY AUTOINCREMENT, EngWordName TEXT, TurWordName TEXT, Picture TEXT, Level TEXT, Asama INTEGER DEFAULT 0, SonTekrar TEXT, SonrakiTekrar TEXT)',
+          'CREATE TABLE Kelimeler (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, meaning TEXT, hint TEXT, example TEXT, example_tr TEXT, level TEXT, asama INTEGER DEFAULT 0, son_tekrar TEXT, sonraki_tekrar TEXT)',
         );
 
-        // --- WORD SAMPLES (Cümle örnekleri için ayrı tablo - Hoca bunu istemişti) ---
-        await db.execute(
-          'CREATE TABLE WordSamples (WordSamplesID INTEGER PRIMARY KEY AUTOINCREMENT, WordID INTEGER, Sample TEXT, SampleTr TEXT)',
-        );
-
-        // --- 3. STORY: ALGORİTMA AYARLARI (6 Sefer Tekrar) ---
         await db.execute(
           'CREATE TABLE Ayarlar (asama INTEGER PRIMARY KEY, gun_sayisi INTEGER)',
         );
@@ -58,24 +47,61 @@ class DbHelper {
     );
   }
 
-  // --- KULLANICI İŞLEMLERİ (Revize Edildi) ---
+  // --- KULLANICI İŞLEMLERİ ---
   Future<int> kayitOl(Map<String, dynamic> user) async {
     var db = await database;
-    // user Map'i içindeki keyleri UserName, Password, Email olarak göndermelisin
-    return await db.insert('Users', user);
+    return await db.insert('Kullanicilar', user);
   }
 
   Future<Map<String, dynamic>?> girisYap(String email, String sifre) async {
     var db = await database;
     List<Map<String, dynamic>> res = await db.query(
-      'Users',
-      where: "Email = ? AND Password = ?",
+      'Kullanicilar',
+      where: "email = ? AND sifre = ?",
       whereArgs: [email, sifre],
     );
     return res.isNotEmpty ? res.first : null;
   }
 
-  // --- ÖĞRENME VE SINAV MODÜLÜ ---
+  Future<bool> sifreGuncelle(
+    String email,
+    String mevcutSifre,
+    String yeniSifre,
+  ) async {
+    var db = await database;
+
+    List<Map<String, dynamic>> res = await db.query(
+      'Kullanicilar',
+      where: "email = ? AND sifre = ?",
+      whereArgs: [email, mevcutSifre],
+    );
+
+    if (res.isNotEmpty) {
+      int count = await db.update(
+        'Kullanicilar',
+        {'sifre': yeniSifre},
+        where: "email = ?",
+        whereArgs: [email],
+      );
+      return count > 0;
+    } else {
+      return false;
+    }
+  }
+
+  // --- OYUNLAR VE ÖĞRENME ---
+  Future<List<WordModel>> rastgeleKelimeGetir(String seviye, int limit) async {
+    var db = await database;
+    List<Map<String, dynamic>> maps = await db.query(
+      'Kelimeler',
+      where: 'UPPER(level) = ?',
+      whereArgs: [seviye.toUpperCase()],
+      limit: limit,
+      orderBy: 'RANDOM()',
+    );
+    return List.generate(maps.length, (i) => WordModel.fromMap(maps[i]));
+  }
+
   Future<List<WordModel>> ogrenilecekKelimeleriGetir(
     String seviye,
     int limit,
@@ -83,17 +109,59 @@ class DbHelper {
     var db = await database;
     String suAn = DateTime.now().toIso8601String();
     List<Map<String, dynamic>> maps = await db.query(
-      'Words',
+      'Kelimeler',
       where:
-          'UPPER(Level) = ? AND (Asama = 0 OR SonrakiTekrar <= ? OR SonrakiTekrar IS NULL)',
+          'UPPER(level) = ? AND (asama = 0 OR sonraki_tekrar <= ? OR sonraki_tekrar IS NULL)',
       whereArgs: [seviye.toUpperCase(), suAn],
       limit: limit,
-      orderBy: 'Asama ASC',
+      orderBy: 'asama ASC',
     );
     return List.generate(maps.length, (i) => WordModel.fromMap(maps[i]));
   }
 
-  // --- 6 SEFER TEKRAR ALGORİTMASI (En Önemli Kısım) ---
+  Future<List<WordModel>> kelimeDurumlariniSenkronizeEt(
+    List<WordModel> hamListe,
+  ) async {
+    var db = await database;
+    List<WordModel> donusListesi = [];
+    for (var k in hamListe) {
+      var res = await db.query(
+        'Kelimeler',
+        where: 'word = ?',
+        whereArgs: [k.word],
+      );
+      if (res.isNotEmpty) {
+        donusListesi.add(WordModel.fromMap(res.first));
+      } else {
+        int id = await db.insert('Kelimeler', k.toMap());
+        donusListesi.add(k.copyWith(id: id));
+      }
+    }
+    return donusListesi;
+  }
+
+  // --- AYARLAR VE İLERLEME ---
+  Future<int> ayarGuncelle(int asama, int gun) async {
+    var db = await database;
+    return await db.update(
+      'Ayarlar',
+      {'gun_sayisi': gun},
+      where: 'asama = ?',
+      whereArgs: [asama],
+    );
+  }
+
+  Future<Map<int, int>> ayarlariGetir() async {
+    var db = await database;
+    List<Map<String, dynamic>> res = await db.query(
+      'Ayarlar',
+      orderBy: 'asama ASC',
+    );
+    return {
+      for (var item in res) item['asama'] as int: item['gun_sayisi'] as int,
+    };
+  }
+
   Future<int> kelimeAsamaGuncelle(int? id, int yeniAsama) async {
     if (id == null) return -1;
     var db = await database;
@@ -110,31 +178,75 @@ class DbHelper {
     DateTime sonraki = simdi.add(Duration(days: eklenecekGun));
 
     return await db.update(
-      'Words',
+      'Kelimeler',
       {
-        'Asama': hedefAsama,
-        'SonTekrar': simdi.toIso8601String(),
-        'SonrakiTekrar': sonraki.toIso8601String(),
+        'asama': hedefAsama,
+        'son_tekrar': simdi.toIso8601String(),
+        'sonraki_tekrar': sonraki.toIso8601String(),
       },
-      where: 'WordID = ?',
+      where: 'id = ?',
       whereArgs: [id],
     );
   }
 
-  // --- İSTATİSTİKLER ---
+  // --- GELİŞMİŞ İSTATİSTİKLER ---
   Future<Map<String, dynamic>> getGenelIstatistikler() async {
     final db = await database;
     int toplam =
         Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM Words'),
+          await db.rawQuery('SELECT COUNT(*) FROM Kelimeler'),
         ) ??
         0;
     int tamamlanan =
         Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM Words WHERE Asama = 6'),
+          await db.rawQuery('SELECT COUNT(*) FROM Kelimeler WHERE asama = 6'),
+        ) ??
+        0;
+    int devamEden =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM Kelimeler WHERE asama > 0 AND asama < 6',
+          ),
         ) ??
         0;
 
-    return {'toplam': toplam, 'tamamlanan': tamamlanan};
+    List<Map<String, dynamic>> asamaDagilimiRaw = await db.rawQuery(
+      'SELECT asama, COUNT(*) as adet FROM Kelimeler GROUP BY asama',
+    );
+    Map<int, int> asamaDagilimi = {for (int i = 0; i <= 6; i++) i: 0};
+    for (var row in asamaDagilimiRaw) {
+      asamaDagilimi[row['asama'] as int] = row['adet'] as int;
+    }
+
+    return {
+      'toplam': toplam,
+      'tamamlanan': tamamlanan,
+      'devam_eden': devamEden, // BURADAKİ YAZIM HATASI DÜZELDİ AGA
+      'asama_dagilimi': asamaDagilimi,
+    };
+  }
+
+  Future<Map<String, dynamic>> getSeviyeIstatistigi(String seviye) async {
+    final db = await database;
+    String s = seviye.toUpperCase();
+    int toplam =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM Kelimeler WHERE UPPER(level) = ?',
+            [s],
+          ),
+        ) ??
+        0;
+    int biten =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM Kelimeler WHERE UPPER(level) = ? AND asama = 6',
+            [s],
+          ),
+        ) ??
+        0;
+    double oran = toplam > 0 ? (biten / toplam) * 100 : 0.0;
+
+    return {'toplam': toplam, 'biten': biten, 'yuzde': oran};
   }
 }

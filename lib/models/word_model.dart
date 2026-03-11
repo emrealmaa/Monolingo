@@ -19,31 +19,47 @@ class WordModel {
     this.asama = 0,
   });
 
+  // Ham veriyi (Map) WordModel nesnesine çevirir
+  // Buradaki key isimleri (örn: 'example_tr') JSON dosyanla birebir aynı olmalı
   factory WordModel.fromMap(Map<String, dynamic> map) {
     return WordModel(
-      // DbHelper'daki yeni kolon isimlerine göre okuyoruz
-      id: map['WordID'] as int?,
-      word: map['EngWordName']?.toString() ?? '',
-      meaning: map['TurWordName']?.toString() ?? '',
-      hint:
-          map['hint']?.toString() ?? '', // Hint senin DB'de küçük harf kalmıştı
+      id: map['id'] as int?,
+      word: map['word']?.toString() ?? '',
+      meaning: map['meaning']?.toString() ?? '',
+      hint: map['hint']?.toString() ?? '',
       example: map['example']?.toString() ?? '',
-      example_tr: map['example_tr']?.toString() ?? '',
-      level: map['Level']?.toString() ?? '',
-      asama: map['Asama'] ?? 0,
+      example_tr:
+          map['example_tr']?.toString() ?? '', // JSON'daki example_tr'yi okur
+      level: map['level']?.toString() ?? '',
+      asama: (map['asama'] is int) ? map['asama'] : 0, // Tip kontrolü ekledik
     );
   }
 
+  // Modeli tekrar Map formatına çevirir (Veritabanı işlemleri için)
   Map<String, dynamic> toMap() {
     return {
-      if (id != null) 'WordID': id,
-      'EngWordName': word,
-      'TurWordName': meaning,
+      if (id != null) 'id': id,
+      'word': word,
+      'meaning': meaning,
       'hint': hint,
       'example': example,
       'example_tr': example_tr,
-      'Level': level,
-      'Asama': asama,
+      'level': level,
+      'asama': asama,
     };
+  }
+
+  // Nesneyi kopyalayıp güncellemek için (Özellikle 'asama' artırırken lazım olur)
+  WordModel copyWith({int? id, int? asama}) {
+    return WordModel(
+      id: id ?? this.id,
+      word: this.word,
+      meaning: this.meaning,
+      hint: this.hint,
+      example: this.example,
+      example_tr: this.example_tr,
+      level: this.level,
+      asama: asama ?? this.asama,
+    );
   }
 }
