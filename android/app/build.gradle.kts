@@ -10,7 +10,6 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        // Kotlin DSL'de '=' kullanmak zorunlu aga
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8

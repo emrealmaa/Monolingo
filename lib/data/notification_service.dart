@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -14,20 +15,44 @@ class NotificationService {
     tz.initializeTimeZones(); // Zaman dilimlerini ayarla
 
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher'); // Uygulama ikonun
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
     );
 
     await _notificationsPlugin.initialize(initSettings);
+
+    if (Platform.isAndroid) {
+      // AGA BURASI KRİTİK: Kanalı sisteme resmi olarak tanıtıyoruz
+      final androidPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'kelime_kanali', // hatirlaticiKur içindeki ID ile birebir aynı
+        'Kelime Hatırlatıcı',
+        description: 'Günlük kelime tekrarı bildirimleri',
+        importance: Importance.max, // Bildirimin tepeden düşmesini sağlar
+      );
+
+      // Kanalı oluştur (Ayarlarda görünmesini sağlayan asıl hamle)
+      await androidPlugin?.createNotificationChannel(channel);
+
+      // İzinleri iste
+      await androidPlugin?.requestNotificationsPermission();
+
+      // Tam zamanlı bildirim (Exact Alarm) izni kontrolü (Android 14+ için)
+      await androidPlugin?.requestExactAlarmsPermission();
+    }
   }
 
   // Hatırlatıcı Planla
   Future<void> hatirlaticiKur(int id, int hour, int minute) async {
     await _notificationsPlugin.zonedSchedule(
       id,
-      'Aga Hafızayı Tazeleyelim mi?',
+      'Hafızayı Tazeleyelim mi?',
       'Kelime tekrarı saatin geldi, hadi 2 dakika bakıp çıkalım.',
       _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
@@ -37,6 +62,7 @@ class NotificationService {
           channelDescription: 'Günlük kelime tekrarı bildirimleri',
           importance: Importance.max,
           priority: Priority.high,
+          showWhen: true, // Saati göster
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -65,5 +91,26 @@ class NotificationService {
 
   Future<void> bildirimIptal(int id) async {
     await _notificationsPlugin.cancel(id);
+  }
+
+  // TEST İÇİN: 5 saniye sonra bildirim gönderen metod
+  Future<void> testBildirimi() async {
+    await _notificationsPlugin.zonedSchedule(
+      999,
+      'Test Bildirimi',
+      'Sistem çalışıyor aga, sıkıntı yok!',
+      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'kelime_kanali',
+          'Test Kanalı',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
   }
 }

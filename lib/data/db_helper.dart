@@ -105,7 +105,7 @@ class DbHelper {
     if (maps.isNotEmpty) {
       return maps.first;
     } else {
-      return {'word': 'EMPTY', 'meaning': 'Bu seviyede kelime yok aga'};
+      return {'word': 'EMPTY', 'meaning': 'Bu seviyede kelime bulunamadı'};
     }
   }
 

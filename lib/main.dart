@@ -5,7 +5,12 @@ import 'screens/theme_notifier.dart';
 import 'data/db_helper.dart';
 import 'models/word_model.dart';
 
-// --- BURADAKİ YOLLARIN DOĞRULUĞUNDAN EMİN OL AGA ---
+// --- BİLDİRİM İÇİN GEREKLİ OLANLAR BURADA AGA ---
+import 'data/notification_service.dart'; // Dosya yolun hangisiyse ona göre düzelt
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+
+// --- KELİME VERİLERİ ---
 import 'data/A1_kelime.dart';
 import 'data/A2_kelime.dart';
 import 'data/B1_kelime.dart';
@@ -16,6 +21,12 @@ void main() async {
   // 1. Flutter motorunu hazırla
   WidgetsFlutterBinding.ensureInitialized();
 
+  // --- BİLDİRİM SERVİSİNİ BAŞLATAN KRİTİK KISIM BURASI ---
+  tz.initializeTimeZones(); // Timezone verilerini başlat
+  final notificationService = NotificationService();
+  await notificationService.init(); // İzin penceresini bu satır tetikler!
+  // ------------------------------------------------------
+
   final db = DbHelper();
 
   // 2. Mevcut durumu kontrol et
@@ -25,11 +36,8 @@ void main() async {
 
   // 3. EĞER VERİTABANI BOŞSA HER ŞEYİ YÜKLE
   if (stats['toplam'] == 0) {
-    print("Aga raflar boş, tüm seviyeler kamyonla geliyor...");
+    print("raflar boş, tüm seviyeler kamyonla geliyor...");
 
-    // Tüm Map listelerini tek bir dev listede topluyoruz
-    // NOT: Diğer dosyalardaki liste isimlerinin a2RawData, b1RawData... olduğunu varsayıyorum.
-    // Eğer farklıysa (mesela hepsinde adı rawData ise) onları 'as' ile import etmen gerekir.
     final List<Map<String, dynamic>> tumHamVeriler = [
       ...a1RawData,
       ...a2RawData,
@@ -38,7 +46,6 @@ void main() async {
       ...c1RawData,
     ];
 
-    // Map -> WordModel dönüşümü (Hata almamak için şart!)
     List<WordModel> tumKelimeler = tumHamVeriler
         .map((m) => WordModel.fromMap(m))
         .toList();
@@ -46,8 +53,6 @@ void main() async {
     if (tumKelimeler.isNotEmpty) {
       await db.kelimeDurumlariniSenkronizeEt(tumKelimeler);
       print("İŞLEM TAMAM: ${tumKelimeler.length} kelime veritabanına çakıldı!");
-    } else {
-      print("HATA: Listeler boş geldi kral, dosyaları kontrol et.");
     }
   }
 

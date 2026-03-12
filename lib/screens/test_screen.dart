@@ -17,9 +17,16 @@ class TestEkrani extends StatefulWidget {
 
 class _TestEkraniState extends State<TestEkrani> {
   int _idx = 0;
-  bool _isHintVisible = false; // İpucu kontrolü buraya geldi
+  bool _isHintVisible = false;
   int dogruSayisi = 0;
   int yanlisSayisi = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Aga alfabetik sırayı burada bozuyoruz, her girişinde farklı gelir
+    widget.liste.shuffle();
+  }
 
   void _sonrakiKelime(bool bildiMi) async {
     final word = widget.liste[_idx];
@@ -39,7 +46,7 @@ class _TestEkraniState extends State<TestEkrani> {
     if (_idx < widget.liste.length - 1) {
       setState(() {
         _idx++;
-        _isHintVisible = false; // Yeni kelimede ipucunu kapat
+        _isHintVisible = false;
       });
     } else {
       _sonucGoster();
@@ -156,38 +163,7 @@ class _TestEkraniState extends State<TestEkrani> {
                     word: word,
                   ),
                 ),
-                const SizedBox(height: 20),
-
-                // İPUCU BUTONU VE YAZISI
-                _isHintVisible
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 40),
-                        child: Text(
-                          "İpucu: ${word.example}", // 'cumle' yerine 'example' yaptık kral
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.montserrat(
-                            fontSize: 16,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      )
-                    : TextButton.icon(
-                        onPressed: () => setState(() => _isHintVisible = true),
-                        icon: const Icon(
-                          Icons.lightbulb_outline,
-                          color: Colors.amber,
-                          size: 28,
-                        ),
-                        label: const Text(
-                          "İPUCU AL",
-                          style: TextStyle(
-                            color: Colors.amber,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
+                // İPUCU BUTONU BURADAN UÇTU AGA
               ],
             ),
           ),

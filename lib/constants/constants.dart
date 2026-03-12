@@ -7,7 +7,6 @@ const Color kAccentCopper = Color(0xFFFB923C);
 const Color kLightText = Color(0xFFF8FAFC);
 
 // --- TEMA AYARLARI (INPUT DECORATION FONKSİYONU) ---
-// Aga burayı fonksiyon yaptım çünkü context üzerinden o anki temayı kontrol etmemiz lazım
 InputDecoration getKInputDecoration(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
 

@@ -12,39 +12,88 @@ class FlipCardWidget extends StatefulWidget {
 }
 
 class _FlipCardWidgetState extends State<FlipCardWidget> {
-  bool _showFront = true; // Kartın ön yüzü mü açık?
+  bool _showFront = true;
+  bool _hintVisible = false; // Ampul için kontrol değişkeni
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => setState(() => _showFront = !_showFront),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 600),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          // Kartın dönme animasyonu (Y ekseninde 180 derece)
-          final rotate = Tween(begin: pi, end: 0.0).animate(animation);
-          return AnimatedBuilder(
-            animation: rotate,
-            child: child,
-            builder: (context, child) {
-              final isUnder = (ValueKey(_showFront) != child!.key);
-              var tilt = ((animation.value - 0.5).abs() - 0.5) * 0.003;
-              tilt *= isUnder ? -1.0 : 1.0;
-              final value = isUnder ? min(rotate.value, pi / 2) : rotate.value;
-              return Transform(
-                transform: Matrix4.rotationY(value)..setEntry(3, 0, tilt),
-                alignment: Alignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _showFront = !_showFront;
+              _hintVisible = false; // Kart dönünce ipucunu kapat aga
+            });
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              final rotate = Tween(begin: pi, end: 0.0).animate(animation);
+              return AnimatedBuilder(
+                animation: rotate,
                 child: child,
+                builder: (context, child) {
+                  final isUnder = (ValueKey(_showFront) != child!.key);
+                  var tilt = ((animation.value - 0.5).abs() - 0.5) * 0.003;
+                  tilt *= isUnder ? -1.0 : 1.0;
+                  final value = isUnder
+                      ? min(rotate.value, pi / 2)
+                      : rotate.value;
+                  return Transform(
+                    transform: Matrix4.rotationY(value)..setEntry(3, 0, tilt),
+                    alignment: Alignment.center,
+                    child: child,
+                  );
+                },
               );
             },
-          );
-        },
-        child: _showFront ? _buildFront() : _buildBack(),
-      ),
+            child: _showFront ? _buildFront() : _buildBack(),
+          ),
+        ),
+
+        const SizedBox(height: 25),
+
+        // --- KARTIN ALTINDAKİ AMPUL VE İPUCU ---
+        if (_showFront)
+          Column(
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.lightbulb,
+                  color: _hintVisible ? Colors.amber : Colors.grey.shade400,
+                  size: 45,
+                ),
+                onPressed: () {
+                  setState(() => _hintVisible = !_hintVisible);
+                },
+              ),
+              const SizedBox(height: 10),
+              // Animasyonlu ipucu gösterimi (şak diye çıkmasın)
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: _hintVisible ? 1.0 : 0.0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    widget.word.hint, // WordModel'deki 'hint' alanı
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 
-  // --- KARTIN ÖN YÜZÜ (Kelime ve Anlamı) ---
+  // --- ÖN YÜZ (Sadece İngilizce Kelime) ---
   Widget _buildFront() {
     return Container(
       key: const ValueKey(true),
@@ -53,7 +102,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
       decoration: BoxDecoration(
         color: kAccentCopper,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Colors.black26,
             blurRadius: 10,
@@ -64,7 +113,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
+          const Text(
             "Kelimemiz:",
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
@@ -73,22 +122,18 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
             widget.word.word,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 40,
+              fontSize: 45,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 30),
           const Icon(Icons.touch_app, color: Colors.white54, size: 30),
-          const Text(
-            "Çevirmek için tıkla",
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
         ],
       ),
     );
   }
 
-  // --- KARTIN ARKA YÜZÜ (Örnek ve İpucu) ---
+  // --- ARKA YÜZ (Anlam + İngilizce Örnek + Türkçe Örnek) ---
   Widget _buildBack() {
     return Container(
       key: const ValueKey(false),
@@ -111,34 +156,38 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
             Text(
               widget.word.meaning,
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 28,
                 color: kDeepNavy,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const Divider(height: 30),
+            const Divider(height: 40, thickness: 1.5),
             const Text(
               "Örnek Cümle:",
               style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 10),
+            // DB'den gelen İngilizce Örnek Cümle
             Text(
-              widget.word.example ?? "Örnek eklenmemiş.",
+              widget.word.example,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
-            ),
-            const SizedBox(height: 15),
-            if (widget.word.hint != null)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  "💡 İpucu: ${widget.word.hint}",
-                  style: const TextStyle(color: Colors.black87),
-                ),
+              style: const TextStyle(
+                fontSize: 18,
+                fontStyle: FontStyle.italic,
+                color: Colors.black87,
               ),
+            ),
+            const SizedBox(height: 8),
+            // HATANIN ÇÖZÜMÜ BURASI AGA: 'example_tr' olarak çağırdık
+            Text(
+              widget.word.example_tr,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.blueGrey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
