@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../constants/constants.dart';
 import '../data/db_helper.dart';
@@ -24,12 +25,10 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
   int can = 3;
   int toplamPuan = 0;
   int bilinenKelimeSayisi = 0;
-  bool harfJokeriKullanildi = false;
-  bool anlamJokeriKullanildi = false;
+  int harfJokeriHakki = 3;
   bool anlamGosterilsin = false;
   int toplamHak = 5;
 
-  // Animasyon için
   late AnimationController _shakeController;
 
   @override
@@ -42,6 +41,10 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     _yeniOyunHazirla();
   }
 
+  String _temizle(String metin) {
+    return metin.replaceAll('i', 'I').replaceAll('İ', 'I').toUpperCase().trim();
+  }
+
   Future<void> _yeniOyunHazirla() async {
     setState(() => yukleniyor = true);
     final dbHelper = DbHelper();
@@ -49,7 +52,7 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     final kelimeVerisi = await dbHelper.getRandomWordByLevel(mevcutSeviye);
 
     setState(() {
-      hedefKelime = kelimeVerisi['word'].toString().toUpperCase();
+      hedefKelime = _temizle(kelimeVerisi['word'].toString());
       anlam = kelimeVerisi['meaning'] ?? "Anlam bulunamadı";
       toplamHak = hedefKelime.length <= 3
           ? 3
@@ -57,40 +60,104 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
       tahminler = List.generate(toplamHak, (index) => "");
       mevcutSatir = 0;
       mevcutGiris = "";
-      harfJokeriKullanildi = false;
-      anlamJokeriKullanildi = false;
+      harfJokeriHakki = 3;
       anlamGosterilsin = false;
       oyunBitti = false;
       yukleniyor = false;
     });
   }
 
+  // --- SADECE 1 TANE RASTGELE HARF VEREN GÜNCEL JOKER ---
+  void _rastgeleHarfAc() {
+    if (harfJokeriHakki <= 0 || oyunBitti) return;
+
+    // Henüz doğru bilinmemiş (boş olan veya yanlış harf olan) yerleri bul
+    List<int> eksikIndexler = [];
+    for (int i = 0; i < hedefKelime.length; i++) {
+      if (i >= mevcutGiris.length || mevcutGiris[i] != hedefKelime[i]) {
+        eksikIndexler.add(i);
+      }
+    }
+
+    if (eksikIndexler.isNotEmpty) {
+      // Rastgele bir tanesini seç
+      int secilenIndex = eksikIndexler[Random().nextInt(eksikIndexler.length)];
+
+      _cezaUygula();
+
+      setState(() {
+        harfJokeriHakki--;
+
+        // Mevcut girişi harf harf listeye çevirip sadece o indexi güncelliyoruz
+        List<String> tempGiris = List.generate(hedefKelime.length, (index) {
+          if (index < mevcutGiris.length) return mevcutGiris[index];
+          return " "; // Boşluk bırakıyoruz ki index kaymasın
+        });
+
+        tempGiris[secilenIndex] = hedefKelime[secilenIndex];
+
+        // Tekrar String'e çevir ama sondaki boşlukları temizle
+        mevcutGiris = tempGiris.join('').trimRight();
+      });
+    }
+  }
+
+  // --- AKILLI RENK ALGORİTMASI ---
+  Color _getRenk(int satir, int sutun) {
+    if (satir >= mevcutSatir) return Colors.transparent;
+    String tahmin = tahminler[satir];
+    String harf = tahmin[sutun];
+    if (hedefKelime[sutun] == harf) return Colors.green;
+
+    int hedeftekiToplam = 0;
+    for (int i = 0; i < hedefKelime.length; i++) {
+      if (hedefKelime[i] == harf) hedeftekiToplam++;
+    }
+
+    int oncedenSayilan = 0;
+    for (int i = 0; i < tahmin.length; i++) {
+      if (tahmin[i] == harf) {
+        if (i <= sutun) oncedenSayilan++;
+      }
+    }
+
+    if (hedefKelime.contains(harf) && oncedenSayilan <= hedeftekiToplam) {
+      return Colors.orange;
+    }
+    return Colors.grey.shade800;
+  }
+
+  void _kurallarDialog() {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: kDeepNavy,
+        title: const Text(
+          "Oyun Kuralları",
+          style: TextStyle(color: kAccentCopper),
+        ),
+        content: const Text(
+          "1. Hedef kelimeyi tahmin et.\n"
+          "2. Yeşil: Harf doğru yerde.\n"
+          "3. Turuncu: Harf var ama yeri yanlış.\n"
+          "4. Joker her basışta sadece 1 rastgele harf açar.",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _cezaUygula() {
-    _shakeController.forward(from: 0); // Puan tablosunu sars
-    setState(() {
-      toplamPuan = (toplamPuan - 5).clamp(0, 999999);
-    });
-  }
-
-  void _harfJokeri() {
-    if (oyunBitti ||
-        harfJokeriKullanildi ||
-        mevcutGiris.length >= hedefKelime.length)
-      return;
-    _cezaUygula();
-    setState(() {
-      harfJokeriKullanildi = true;
-      mevcutGiris += hedefKelime[mevcutGiris.length];
-    });
-  }
-
-  void _anlamJokeri() {
-    if (mevcutSatir < 3 || anlamJokeriKullanildi) return;
-    _cezaUygula();
-    setState(() {
-      anlamJokeriKullanildi = true;
-      anlamGosterilsin = true;
-    });
+    _shakeController.forward(from: 0);
+    setState(
+      () => toplamPuan = (toplamPuan - 15).clamp(0, 999999),
+    ); // Joker cezası 15 olsun, kıymetli kalsın
   }
 
   void _onayla() {
@@ -103,11 +170,7 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
           _yeniOyunHazirla();
         } else if (mevcutSatir == toplamHak - 1) {
           can--;
-          if (can <= 0) {
-            _finalOzetEkrani();
-          } else {
-            _yeniOyunHazirla(); // Canı varsa yeni kelimeye geç
-          }
+          can <= 0 ? _finalOzetEkrani() : _yeniOyunHazirla();
         } else {
           mevcutSatir++;
           mevcutGiris = "";
@@ -123,7 +186,6 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     toplamPuan += (baz * (toplamHak - mevcutSatir));
   }
 
-  // ÖZET EKRANI AGA (SONUÇ TABLOSU)
   void _finalOzetEkrani() {
     showDialog(
       context: context,
@@ -145,42 +207,28 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
           children: [
             _ozetSatiri("Toplam Puan", "$toplamPuan"),
             _ozetSatiri("Bilinen Kelime", "$bilinenKelimeSayisi"),
-            const Divider(color: Colors.white24),
-            const Text(
-              "Harika bir iş çıkardın aga!",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
           ],
         ),
         actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade800,
-                ),
-                onPressed: () {
-                  Navigator.pop(c);
-                  Navigator.pop(context);
-                },
-                child: const Text("ANA SAYFA"),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: kAccentCopper),
-                onPressed: () {
-                  Navigator.pop(c);
-                  setState(() {
-                    can = 3;
-                    toplamPuan = 0;
-                    bilinenKelimeSayisi = 0;
-                  });
-                  _yeniOyunHazirla();
-                },
-                child: const Text("TEKRAR OYNA"),
-              ),
-            ],
+          TextButton(
+            onPressed: () {
+              Navigator.pop(c);
+              Navigator.pop(context);
+            },
+            child: const Text("ANA SAYFA"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: kAccentCopper),
+            onPressed: () {
+              Navigator.pop(c);
+              setState(() {
+                can = 3;
+                toplamPuan = 0;
+                bilinenKelimeSayisi = 0;
+              });
+              _yeniOyunHazirla();
+            },
+            child: const Text("TEKRAR OYNA"),
           ),
         ],
       ),
@@ -218,78 +266,77 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     return Scaffold(
       backgroundColor: kDeepNavy,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.info_outline, color: Colors.white),
+          onPressed: _kurallarDialog,
+        ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: AnimatedBuilder(
-          animation: _shakeController,
-          builder: (context, child) {
-            final double offset = (0.5 - _shakeController.value).abs() * 20;
-            return Container(
-              padding: EdgeInsets.only(
-                left: _shakeController.isAnimating ? offset : 0,
-              ),
-              child: Text(
-                "PUAN: $toplamPuan",
-                style: TextStyle(
-                  color: _shakeController.isAnimating
-                      ? Colors.red
-                      : Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            );
-          },
+        title: Text(
+          "PUAN: $toplamPuan",
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              Icons.abc,
-              color: harfJokeriKullanildi ? Colors.grey : Colors.orangeAccent,
-            ),
-            onPressed: harfJokeriKullanildi ? null : _harfJokeri,
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.lightbulb,
-              color: (mevcutSatir >= 3 && !anlamJokeriKullanildi)
-                  ? Colors.yellowAccent
-                  : Colors.grey,
-            ),
-            onPressed: (mevcutSatir >= 3 && !anlamJokeriKullanildi)
-                ? _anlamJokeri
-                : null,
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.lightbulb,
+                  color: Colors.amber,
+                  size: 30,
+                ),
+                onPressed: _rastgeleHarfAc,
+              ),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: CircleAvatar(
+                  radius: 8,
+                  backgroundColor: Colors.red,
+                  child: Text(
+                    "$harfJokeriHakki",
+                    style: const TextStyle(fontSize: 10, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                3,
-                (i) => Icon(
-                  Icons.favorite,
-                  color: i < can ? Colors.red : Colors.grey,
-                  size: 25,
-                ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              3,
+              (i) => Icon(
+                Icons.favorite,
+                color: i < can ? Colors.red : Colors.grey,
+                size: 25,
               ),
             ),
           ),
-          if (anlamGosterilsin)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () => setState(() => anlamGosterilsin = !anlamGosterilsin),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Text(
-                "💡 $anlam",
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kAccentCopper,
-                  fontStyle: FontStyle.italic,
-                ),
+                anlamGosterilsin ? "💡 $anlam" : "Anlam İpucu (Dokun)",
+                style: const TextStyle(color: kAccentCopper, fontSize: 12),
               ),
             ),
+          ),
           Expanded(
             child: Center(
               child: Container(
@@ -326,14 +373,12 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
-                        child: FittedBox(
-                          child: Text(
-                            harf,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                        child: Text(
+                          harf,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -350,26 +395,14 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     );
   }
 
-  // Önceki klavye ve renk metodları aynı kalıyor...
-  Color _getRenk(int satir, int sutun) {
-    if (satir >= mevcutSatir) return Colors.transparent;
-    String harf = tahminler[satir][sutun];
-    if (hedefKelime[sutun] == harf) return Colors.green;
-    if (hedefKelime.contains(harf)) return Colors.orange;
-    return Colors.grey.shade800;
-  }
-
   Widget _buildKlavye() {
     final harfler = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
     return Column(
       children: [
         for (var s in harfler)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: s.split('').map((h) => _klavyeTusu(h)).toList(),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: s.split('').map((h) => _klavyeTusu(h)).toList(),
           ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -406,7 +439,7 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
               setState(() => mevcutGiris += harf);
           },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
+        margin: const EdgeInsets.all(2),
         width: genis,
         height: 48,
         decoration: BoxDecoration(
@@ -419,7 +452,6 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 13,
             ),
           ),
         ),

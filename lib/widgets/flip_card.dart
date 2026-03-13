@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart'; // PAKET EKLENDİ AGA
 import '../constants/constants.dart';
 import '../models/word_model.dart';
 
@@ -13,7 +14,16 @@ class FlipCardWidget extends StatefulWidget {
 
 class _FlipCardWidgetState extends State<FlipCardWidget> {
   bool _showFront = true;
-  bool _hintVisible = false; // Ampul için kontrol değişkeni
+  bool _hintVisible = false;
+  final FlutterTts flutterTts = FlutterTts(); // TTS NESNESİ
+
+  // SESLİ OKUMA FONKSİYONU
+  Future<void> _speak(String text) async {
+    await flutterTts.setLanguage("en-US");
+    await flutterTts.setPitch(1.0);
+    await flutterTts.setSpeechRate(0.5); // Doğal bir hız aga
+    await flutterTts.speak(text);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +34,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
           onTap: () {
             setState(() {
               _showFront = !_showFront;
-              _hintVisible = false; // Kart dönünce ipucunu kapat aga
+              _hintVisible = false;
             });
           },
           child: AnimatedSwitcher(
@@ -52,10 +62,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
             child: _showFront ? _buildFront() : _buildBack(),
           ),
         ),
-
         const SizedBox(height: 25),
-
-        // --- KARTIN ALTINDAKİ AMPUL VE İPUCU ---
         if (_showFront)
           Column(
             children: [
@@ -70,14 +77,13 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
                 },
               ),
               const SizedBox(height: 10),
-              // Animasyonlu ipucu gösterimi (şak diye çıkmasın)
               AnimatedOpacity(
                 duration: const Duration(milliseconds: 300),
                 opacity: _hintVisible ? 1.0 : 0.0,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Text(
-                    widget.word.hint, // WordModel'deki 'hint' alanı
+                    widget.word.hint,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 16,
@@ -93,7 +99,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
     );
   }
 
-  // --- ÖN YÜZ (Sadece İngilizce Kelime) ---
   Widget _buildFront() {
     return Container(
       key: const ValueKey(true),
@@ -110,30 +115,45 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        // Hoparlörü köşeye koyabilmek için Stack ekledim aga
         children: [
-          const Text(
-            "Kelimemiz:",
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            widget.word.word,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 45,
-              fontWeight: FontWeight.bold,
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "Kelimemiz:",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  widget.word.word,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 45,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                const Icon(Icons.touch_app, color: Colors.white54, size: 30),
+              ],
             ),
           ),
-          const SizedBox(height: 30),
-          const Icon(Icons.touch_app, color: Colors.white54, size: 30),
+          // --- SES BUTONU BURADA ---
+          Positioned(
+            right: 15,
+            top: 15,
+            child: IconButton(
+              icon: const Icon(Icons.volume_up, color: Colors.white, size: 35),
+              onPressed: () => _speak(widget.word.word),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // --- ARKA YÜZ (Anlam + İngilizce Örnek + Türkçe Örnek) ---
   Widget _buildBack() {
     return Container(
       key: const ValueKey(false),
@@ -162,12 +182,28 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
               ),
             ),
             const Divider(height: 40, thickness: 1.5),
-            const Text(
-              "Örnek Cümle:",
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            Row(
+              // Arka yüze de küçük bir ses ikonu attım, cümleyi okusun diye
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "Örnek Cümle:",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.volume_down,
+                    size: 20,
+                    color: kAccentCopper,
+                  ),
+                  onPressed: () => _speak(widget.word.example),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            // DB'den gelen İngilizce Örnek Cümle
+            const SizedBox(height: 5),
             Text(
               widget.word.example,
               textAlign: TextAlign.center,
@@ -178,7 +214,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget> {
               ),
             ),
             const SizedBox(height: 8),
-            // HATANIN ÇÖZÜMÜ BURASI AGA: 'example_tr' olarak çağırdık
             Text(
               widget.word.example_tr,
               textAlign: TextAlign.center,
