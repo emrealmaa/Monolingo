@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/constants.dart';
@@ -44,10 +45,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      extendBody: true, // Navigasyonun arkasından içerik süzülsün
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: PageView(
         controller: _pc,
         onPageChanged: (i) => setState(() => _curr = i),
+        physics: const BouncingScrollPhysics(),
         children: [
           const OgrenmeSekmesi(),
           const OyunLobiSekmesi(),
@@ -55,28 +58,84 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ProfilSekmesi(isim: widget.isim, email: widget.email),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _curr,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).cardColor,
-        selectedItemColor: kAccentCopper,
-        unselectedItemColor: isDark ? Colors.white38 : Colors.black38,
-        onTap: (i) => _pc.jumpToPage(i),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.auto_stories),
-            label: "Öğren",
+      bottomNavigationBar: _buildModernNavBar(isDark),
+    );
+  }
+
+  Widget _buildModernNavBar(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 25),
+      height: 75,
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.black.withOpacity(0.6)
+            : Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(35),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.videogame_asset),
-            label: "Oyun",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: "İstatistik",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(35),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _navItem(Icons.auto_stories_rounded, "Öğren", 0),
+              _navItem(Icons.sports_esports_rounded, "Oyun", 1),
+              _navItem(Icons.analytics_rounded, "Analiz", 2),
+              _navItem(Icons.person_rounded, "Profil", 3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label, int index) {
+    bool selected = _curr == index;
+    return GestureDetector(
+      onTap: () {
+        _pc.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut, // Hata veren yer burasıydı, düzelttim aga.
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? kAccentCopper.withAlpha(38) // withOpacity yerine daha güvenli
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: selected ? kAccentCopper : Colors.grey.withAlpha(180),
+              size: 26,
+            ),
+            if (selected)
+              Text(
+                label,
+                style: const TextStyle(
+                  color: kAccentCopper,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -91,109 +150,249 @@ class OyunLobiSekmesi extends StatefulWidget {
 }
 
 class _OyunLobiSekmesiState extends State<OyunLobiSekmesi> {
-  // AGA: final yerine normal tanımlayalım ki state karışmasın
-  List<String> _levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
-  Set<String> _selectedLevels = {'A1', 'A2', 'B1', 'B2', 'C1'};
+  final List<String> _levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
+  final Set<String> _selectedLevels = {'A1', 'A2', 'B1', 'B2', 'C1'};
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // EĞER HALA NULL GÖRÜYORSA BURASI SİGORTA:
-    if (_levels == null || _selectedLevels == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
+    return SafeArea(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.psychology, size: 80, color: kAccentCopper),
-            const SizedBox(height: 20),
             Text(
-              "KELİME MERKEZİ",
+              "SELAM ,",
               style: GoogleFonts.montserrat(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : kDeepNavy,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
                 letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: 30),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: _levels.map((level) {
-                // BURASI HATA VEREN YERDİ, contains öncesi null kontrolü ekledim
-                final isSelected = _selectedLevels.contains(level);
-                return FilterChip(
-                  label: Text(level),
-                  selected: isSelected,
-                  selectedColor: kAccentCopper,
-                  checkmarkColor: isDark ? kDeepNavy : Colors.white,
-                  showCheckmark: false,
-                  labelStyle: TextStyle(
-                    color: isSelected
-                        ? (isDark ? kDeepNavy : Colors.white)
-                        : (isDark ? Colors.white : kDeepNavy),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  backgroundColor: Theme.of(context).cardColor,
-                  side: BorderSide(
-                    color: isDark ? Colors.white10 : Colors.black12,
-                  ),
-                  onSelected: (bool selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedLevels.add(level);
-                      } else if (_selectedLevels.length > 1) {
-                        _selectedLevels.remove(level);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
+            const SizedBox(height: 5),
+            Text(
+              "Hangi seviyeyi çalışıoruz bu gün?",
+              style: GoogleFonts.montserrat(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : kDeepNavy,
+              ),
             ),
-            const SizedBox(height: 50),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kAccentCopper,
-                foregroundColor: isDark ? kDeepNavy : Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 18,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+            const SizedBox(height: 30),
+
+            // SEVİYE SEÇİCİ (Chip Tasarımı)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: _levels.map((level) {
+                  final isSelected = _selectedLevels.contains(level);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected && _selectedLevels.length > 1) {
+                            _selectedLevels.remove(level);
+                          } else {
+                            _selectedLevels.add(level);
+                          }
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? kAccentCopper
+                              : (isDark
+                                    ? Colors.white.withOpacity(0.05)
+                                    : Colors.black.withOpacity(0.05)),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: kAccentCopper.withOpacity(0.4),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Text(
+                          level,
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : kDeepNavy),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // ANA AKSİYON KARTI
+            _buildMainDashboardCard(context),
+
+            const SizedBox(height: 25),
+
+            // TİP KARTI
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withOpacity(0.04)
+                    : Colors.black.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.black12,
                 ),
               ),
-              icon: const Icon(Icons.style, size: 26),
-              label: const Text(
-                "OYUN KATALOĞUNU AÇ",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => OyunSecimSayfasi(
-                      seciliSeviyeler: _selectedLevels.toList(),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.tips_and_updates_rounded,
+                      color: Colors.amber,
                     ),
                   ),
-                );
-              },
+                  const SizedBox(width: 18),
+                  const Expanded(
+                    child: Text(
+                      "Oyunlar seçtiğin seviyelerden rastgele kelimeler getirir. Kendini zorla!",
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 120),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainDashboardCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              OyunSecimSayfasi(seciliSeviyeler: _selectedLevels.toList()),
+        ),
+      ),
+      child: Container(
+        height: 240,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(35),
+          gradient: const LinearGradient(
+            colors: [kAccentCopper, Color(0xFFE08E79)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: kAccentCopper.withOpacity(0.4),
+              blurRadius: 25,
+              offset: const Offset(0, 15),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(35),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -30,
+                top: -30,
+                child: Icon(
+                  Icons.rocket_launch_rounded,
+                  size: 220,
+                  color: Colors.white.withOpacity(0.12),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(35),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Text(
+                      "OYUN\nKATALOĞU",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Hız ve zeka odaklı modlar",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 15,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Text(
+                        "MACERAYA BAŞLA",
+                        style: TextStyle(
+                          color: kAccentCopper,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// --- OYUN SEÇİM SAYFASI (KATALOG) ---
+// --- OYUN KATALOĞU (MODERN GRID) ---
 class OyunSecimSayfasi extends StatelessWidget {
   final List<String> seciliSeviyeler;
   const OyunSecimSayfasi({super.key, required this.seciliSeviyeler});
@@ -205,138 +404,132 @@ class OyunSecimSayfasi extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("OYUN KATALOĞU"),
-        backgroundColor: Theme.of(context).cardColor,
-        foregroundColor: isDark ? Colors.white : kDeepNavy,
+        title: Text(
+          "MODUNU SEÇ",
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            _oyunKarti(
-              context,
-              baslik: "ZAMANA KARŞI AV",
-              altBaslik: "Harfleri hızlıca diz, süreyi dondur!",
-              ikon: Icons.timer_outlined,
-              renk: kAccentCopper,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ZamanaKarsiOyunEkrani(seciliSeviyeler: seciliSeviyeler),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            _oyunKarti(
-              context,
-              baslik: "WORDLE UNLIMITED",
-              altBaslik: "Günlük sınır yok, istediğin kadar Wordle oyna!",
-              ikon: Icons.flash_on,
-              renk: Colors.blueAccent,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        WordleUnlimitedScreen(seciliSeviyeler: seciliSeviyeler),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            _oyunKarti(
-              context,
-              baslik: "HARF LABORATUVARI",
-              altBaslik: "Eksik harfleri tamamlayarak ilerle.",
-              ikon: Icons.biotech,
-              renk: Colors.greenAccent,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HarfLaboratuvariScreen(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            _oyunKarti(
-              context,
-              baslik: "WORD CHAIN AI",
-              altBaslik: "5 kelimeyle yapay zeka hikayeni ve resmini çizsin!",
-              ikon: Icons.auto_awesome,
-              renk: Colors.purpleAccent,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const WordChainScreen(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+      body: GridView.count(
+        padding: const EdgeInsets.all(25),
+        crossAxisCount: 2,
+        mainAxisSpacing: 20,
+        crossAxisSpacing: 20,
+        childAspectRatio: 0.82,
+        physics: const BouncingScrollPhysics(),
+        children: [
+          _modernGameCard(
+            context,
+            "ZAMANA KARŞI",
+            Icons.timer_outlined,
+            kAccentCopper,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ZamanaKarsiOyunEkrani(seciliSeviyeler: seciliSeviyeler),
+                ),
+              );
+            },
+          ),
+          _modernGameCard(
+            context,
+            "WORDLE",
+            Icons.grid_on_rounded,
+            Colors.blueAccent,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      WordleUnlimitedScreen(seciliSeviyeler: seciliSeviyeler),
+                ),
+              );
+            },
+          ),
+          _modernGameCard(
+            context,
+            "HARF LAB",
+            Icons.biotech_rounded,
+            Colors.greenAccent,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HarfLaboratuvariScreen(),
+                ),
+              );
+            },
+          ),
+          _modernGameCard(
+            context,
+            "CHAIN AI",
+            Icons.auto_awesome_rounded,
+            Colors.purpleAccent,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WordChainScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _oyunKarti(
-    BuildContext context, {
-    required String baslik,
-    required String altBaslik,
-    required IconData ikon,
-    required Color renk,
-    required VoidCallback onTap,
-  }) {
+  Widget _modernGameCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? renk.withOpacity(0.3) : renk.withOpacity(0.1),
-          ),
+          color: isDark ? color.withOpacity(0.08) : color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: color.withOpacity(0.2), width: 1.5),
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(ikon, size: 40, color: renk),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    baslik,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : kDeepNavy,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    altBaslik,
-                    style: TextStyle(
-                      color: isDark ? Colors.white54 : Colors.black54,
-                      fontSize: 13,
-                    ),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.1),
+                    blurRadius: 15,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
+              child: Icon(icon, size: 40, color: color),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: isDark ? Colors.white24 : Colors.black26,
-              size: 16,
+            const SizedBox(height: 20),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isDark ? Colors.white : kDeepNavy,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),

@@ -167,11 +167,11 @@ class _ZamanaKarsiOyunEkraniState extends State<ZamanaKarsiOyunEkrani>
   void _komboMesajiGoster() {
     String? mesaj;
     if (_combo == 3)
-      mesaj = "🔥 HARİKA!";
+      mesaj = "🔥 GÜZEL!";
     else if (_combo == 5)
-      mesaj = "⚡ MUHTEŞEM!";
+      mesaj = "⚡ HARİKAA!";
     else if (_combo >= 10)
-      mesaj = "🏆 KRALSIN!";
+      mesaj = "🏆 MUHTEŞEMMM!";
 
     if (mesaj != null) {
       ScaffoldMessenger.of(context).showSnackBar(

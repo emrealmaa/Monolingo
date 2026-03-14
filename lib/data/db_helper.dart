@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'dart:async';
-import 'dart:convert'; // JSON işlemleri için gerekli
+import 'dart:convert';
 import 'package:ingilizce_ogrenme_app/models/word_model.dart';
 
 class DbHelper {
@@ -23,14 +23,15 @@ class DbHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5, // AGA: Versiyonu 5 yaptık çünkü yeni sütun ekledik
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE Kullanicilar (id INTEGER PRIMARY KEY AUTOINCREMENT, isim TEXT, email TEXT UNIQUE, sifre TEXT, dogumTarihi TEXT)',
         );
 
+        // AGA: asama_alistirma sütunu eklendi
         await db.execute(
-          'CREATE TABLE Kelimeler (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, meaning TEXT, hint TEXT, example TEXT, example_tr TEXT, level TEXT, asama INTEGER DEFAULT 0, son_tekrar TEXT, sonraki_tekrar TEXT)',
+          'CREATE TABLE Kelimeler (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, meaning TEXT, hint TEXT, example TEXT, example_tr TEXT, level TEXT, asama INTEGER DEFAULT 0, asama_alistirma INTEGER DEFAULT 0, son_tekrar TEXT, sonraki_tekrar TEXT)',
         );
 
         await db.execute(
@@ -60,11 +61,17 @@ class DbHelper {
             'ALTER TABLE quiz_results ADD COLUMN wrong_words TEXT',
           );
         }
+        // AGA: Mevcut kullanıcılar için asama_alistirma sütununu ekliyoruz
+        if (oldVersion < 5) {
+          await db.execute(
+            'ALTER TABLE Kelimeler ADD COLUMN asama_alistirma INTEGER DEFAULT 0',
+          );
+        }
       },
     );
   }
 
-  // --- KULLANICI İŞLEMLERİ ---
+  // --- KULLANICI İŞLEMLERİ --- (AYNI KALDI)
   Future<int> kayitOl(Map<String, dynamic> user) async {
     var db = await database;
     return await db.insert('Kullanicilar', user);
@@ -104,7 +111,7 @@ class DbHelper {
     return false;
   }
 
-  // --- OYUNLAR VE ÖĞRENME ---
+  // --- OYUNLAR VE ÖĞRENME --- (GÜNCELLENDİ)
 
   Future<int> getOgrenilmisKelimeSayisi() async {
     final db = await database;
@@ -157,6 +164,7 @@ class DbHelper {
   ) async {
     var db = await database;
     String suAn = DateTime.now().toIso8601String();
+    // AGA: Burada hem yeni kelimeleri hem de tekrar zamanı gelenleri çekiyoruz
     List<Map<String, dynamic>> maps = await db.query(
       'Kelimeler',
       where:
@@ -189,7 +197,7 @@ class DbHelper {
     return donusListesi;
   }
 
-  // --- AYARLAR VE İLERLEME ---
+  // --- AYARLAR VE İLERLEME --- (Sınav Kulvarı)
   Future<int> ayarGuncelle(int asama, int gun) async {
     var db = await database;
     return await db.update(
@@ -211,6 +219,7 @@ class DbHelper {
     };
   }
 
+  // AGA: Bu metod ASIL SINAV aşamasını ve tekrar tarihini günceller
   Future<int> kelimeAsamaGuncelle(int? id, int yeniAsama) async {
     if (id == null) return -1;
     var db = await database;
@@ -236,7 +245,38 @@ class DbHelper {
     );
   }
 
-  // --- GELİŞMİŞ İSTATİSTİKLER ---
+  // AGA: Bu yeni metod sadece ALIŞTIRMA (Bildim/Bilemedim) aşamasını günceller
+  Future<int> kelimeAsamaGuncelleAlistirma(int? id, bool bildiMi) async {
+    if (id == null) return -1;
+    var db = await database;
+
+    // Mevcut alıştırma aşamasını al
+    List<Map<String, dynamic>> current = await db.query(
+      'Kelimeler',
+      columns: ['asama_alistirma'],
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    int mevcut = current.isNotEmpty
+        ? (current.first['asama_alistirma'] ?? 0)
+        : 0;
+
+    int yeniAsama;
+    if (bildiMi) {
+      yeniAsama = mevcut < 6 ? mevcut + 1 : 6;
+    } else {
+      yeniAsama = 1; // Bilemezse başa döner
+    }
+
+    return await db.update(
+      'Kelimeler',
+      {'asama_alistirma': yeniAsama},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // --- GELİŞMİŞ İSTATİSTİKLER --- (AYNI KALDI)
   Future<Map<String, dynamic>> getGenelIstatistikler() async {
     final db = await database;
     int toplam =
@@ -256,8 +296,6 @@ class DbHelper {
           ),
         ) ??
         0;
-
-    // AGA: Buraya ekran görüntüsündeki 'Başlanmadı' verisini ekledim
     int baslanmadi =
         Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM Kelimeler WHERE asama = 0'),
@@ -312,12 +350,17 @@ class DbHelper {
     return await db.query('quiz_results', orderBy: 'date DESC', limit: 5);
   }
 
+  // AGA: Sınav ekranına sadece tarihi gelmiş kelimeleri getirir
   Future<List<Map<String, dynamic>>> getQuestionsForQuiz(String level) async {
     final db = await database;
+    String suAn = DateTime.now().toIso8601String();
+
+    // AGA: KRİTİK FİLTRE BURADA. Sadece süresi dolanlar veya hiç girilmeyenler gelir.
     final List<Map<String, dynamic>> allWords = await db.query(
       'Kelimeler',
-      where: 'UPPER(level) = ?',
-      whereArgs: [level.toUpperCase()],
+      where:
+          'UPPER(level) = ? AND (sonraki_tekrar <= ? OR sonraki_tekrar IS NULL)',
+      whereArgs: [level.toUpperCase(), suAn],
     );
 
     if (allWords.length < 5) return [];

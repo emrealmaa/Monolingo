@@ -30,7 +30,7 @@ class _WordChainScreenState extends State<WordChainScreen> {
 
     if (kelimeler.length < 5) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Aga 5 kelimeyi de girmen lazım!")),
+        const SnackBar(content: Text("lütfen 5 kelimeyi de giriniz!")),
       );
       return;
     }

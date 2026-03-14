@@ -47,7 +47,7 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
     final email = _email.text.trim();
     final sifre = _sifre.text.trim();
     if (email.isEmpty || sifre.isEmpty) {
-      _mesajGoster("Alanları boş bırakma aga!");
+      _mesajGoster("Alanları boş bırakma!");
       return;
     }
     setState(() => _isLoading = true);
@@ -64,7 +64,7 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
           ),
         );
       } else {
-        _mesajGoster("E-posta veya şifre hatalı kral.");
+        _mesajGoster("E-posta veya şifre hatalı, kontrol etmelisin.");
       }
     } catch (e) {
       _mesajGoster("Bir hata oluştu.");
@@ -169,7 +169,7 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
                     ),
                   ),
                   child: Text(
-                    "Şifremi unuttum, yardım et aga!",
+                    "Şifremi unuttum, yardım et!",
                     style: TextStyle(
                       color: isDark ? Colors.white24 : Colors.black26,
                       fontSize: 13,

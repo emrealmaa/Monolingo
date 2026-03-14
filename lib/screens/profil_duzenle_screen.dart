@@ -211,7 +211,7 @@ class _ProfilDuzenleEkraniState extends State<ProfilDuzenleEkrani> {
     final yeniSifreTekrar = _yeniSifreTekrarController.text;
 
     if (ad.isEmpty || email.isEmpty) {
-      _mesajGoster("Ad ve Email boş bırakılamaz aga!");
+      _mesajGoster("Ad ve Email boş bırakılamaz, lütfen doldurun!");
       return;
     }
 
@@ -231,7 +231,7 @@ class _ProfilDuzenleEkraniState extends State<ProfilDuzenleEkrani> {
       if (mevcutSifre.isEmpty) {
         _mesajGoster("Şifre değiştirmek için mevcut şifreni girmelisin!");
       } else if (yeniSifre != yeniSifreTekrar) {
-        _mesajGoster("Yeni şifreler uyuşmuyor aga!");
+        _mesajGoster("Yeni şifreler uyuşmuyor , kontrol etmelisin!");
       } else if (yeniSifre.length < 4) {
         _mesajGoster("Yeni şifre en az 4 karakter olmalı!");
       } else {
@@ -246,7 +246,7 @@ class _ProfilDuzenleEkraniState extends State<ProfilDuzenleEkrani> {
           _mesajGoster("Profil ve şifre başarıyla güncellendi!");
           Navigator.pop(context);
         } else {
-          _mesajGoster("Mevcut şifren yanlış, kontrol et kral!");
+          _mesajGoster("Mevcut şifren yanlış, kontrol etmelisin!");
         }
       }
     } catch (e) {

@@ -35,7 +35,7 @@ class ForgotPasswordScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              "E-posta adresini yaz, sana bir kurtarma linki gönderelim (çalışıyormuş gibi yaparız).",
+              "E-posta adresini yaz, sana bir kurtarma linki gönderelim.",
               textAlign: TextAlign.center,
               // Yazı rengini moda göre ayarlıyoruz
               style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
@@ -69,7 +69,7 @@ class ForgotPasswordScreen extends StatelessWidget {
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("Link gönderildi (şaka yaptık)"),
+                    content: Text("Link gönderildi! E-postanı kontrol et."),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );

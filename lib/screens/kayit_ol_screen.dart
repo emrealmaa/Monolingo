@@ -80,7 +80,7 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
                 if (_isim.text.isEmpty ||
                     _email.text.isEmpty ||
                     _sifre.text.isEmpty) {
-                  _mesajGoster("Boş yer bırakma aga!");
+                  _mesajGoster("Boş yer bırakılamaz, lütfen doldurun!");
                   return;
                 }
 
@@ -94,7 +94,7 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
                 try {
                   await DbHelper().kayitOl(yeniKullanici);
                   if (mounted) {
-                    _mesajGoster("Kaydın tamam kral, giriş yapabilirsin!");
+                    _mesajGoster("Kaydın tamamlandı, giriş yapabilirsin!");
                     Navigator.pop(context);
                   }
                 } catch (e) {

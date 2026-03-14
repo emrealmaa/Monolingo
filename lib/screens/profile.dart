@@ -55,24 +55,31 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
     final prefs = await SharedPreferences.getInstance();
     int? secilen = await showDialog<int>(
       context: context,
-      builder: (context) => SimpleDialog(
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
         title: Text(
-          "Günlük Hedef Belirle",
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.bold),
+          "GÜNLÜK HEDEF",
+          textAlign: TextAlign.center,
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+            color: kAccentCopper,
+          ),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        children: [10, 20, 30, 50, 100].map((e) {
-          return SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, e),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [10, 20, 30, 50, 100].map((e) {
+            return ListTile(
+              title: Text(
                 "$e Kelime",
-                style: const TextStyle(fontSize: 16, color: kAccentCopper),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-            ),
-          );
-        }).toList(),
+              onTap: () => Navigator.pop(context, e),
+            );
+          }).toList(),
+        ),
       ),
     );
 
@@ -82,7 +89,6 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
     }
   }
 
-  // BURAYI SENİN SERVİSE GÖRE BAĞLADIM AGA
   void _saatSec() async {
     final prefs = await SharedPreferences.getInstance();
     TimeOfDay? time = await showTimePicker(
@@ -97,19 +103,19 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
       final String formattedTime =
           "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
 
-      // 1. SharedPreferences'a kaydet
       await prefs.setString('hatirlaticiSaat', formattedTime);
-
-      // 2. Senin servisindeki hatirlaticiKur metodunu çağırıyoruz
       await NotificationService().hatirlaticiKur(1, time.hour, time.minute);
 
       setState(() => _hatirlaticiSaat = formattedTime);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Hatırlatıcı $formattedTime olarak güncellendi aga!"),
+          content: Text("Hatırlatıcı $formattedTime olarak güncellendi !"),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -121,7 +127,7 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "🎉 Tebrikler! Günlük $_gunlukHedef kelime hedefini tamamladın kral!",
+            "🎉 Günlük $_gunlukHedef kelime hedefini tamamladın , tebrikler!",
           ),
           backgroundColor: kAccentCopper,
           behavior: SnackBarBehavior.floating,
@@ -133,17 +139,18 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: kAccentCopper))
           : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 25),
               child: Column(
                 children: [
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 70),
 
                   // --- PROFİL ÜST ALAN ---
                   Center(
@@ -154,39 +161,42 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: kAccentCopper, width: 2),
+                            border: Border.all(
+                              color: kAccentCopper.withOpacity(0.3),
+                              width: 3,
+                            ),
                           ),
                           child: CircleAvatar(
-                            radius: 55,
-                            backgroundColor: Theme.of(context).cardColor,
+                            radius: 60,
+                            backgroundColor: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.black.withOpacity(0.05),
                             child: const Icon(
-                              Icons.person,
-                              size: 60,
+                              Icons.person_rounded,
+                              size: 70,
                               color: kAccentCopper,
                             ),
                           ),
                         ),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ProfilDuzenleEkrani(
-                                  mevcutIsim: widget.isim,
-                                  mevcutEmail: widget.email,
-                                ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfilDuzenleEkrani(
+                                mevcutIsim: widget.isim,
+                                mevcutEmail: widget.email,
                               ),
-                            );
-                          },
+                            ),
+                          ),
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(10),
                             decoration: const BoxDecoration(
                               color: kAccentCopper,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.edit,
-                              size: 16,
+                              Icons.edit_rounded,
+                              size: 18,
                               color: Colors.white,
                             ),
                           ),
@@ -194,31 +204,34 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 20),
                   Text(
                     widget.isim.toUpperCase(),
                     style: GoogleFonts.montserrat(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : kDeepNavy,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : kDeepNavy,
+                      letterSpacing: 1,
                     ),
                   ),
                   Text(
                     widget.email,
                     style: TextStyle(
-                      color: isDarkMode ? Colors.white54 : Colors.black54,
+                      color: Colors.grey,
                       fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
 
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 40),
 
+                  // --- AYARLAR LİSTESİ ---
                   _buildActionTile(
                     context,
                     "Günlük Hedef",
                     "$_tamamlananBugun / $_gunlukHedef Kelime",
-                    Icons.bolt,
-                    isDarkMode,
+                    Icons.auto_awesome_rounded,
+                    isDark,
                     onTap: _hedefSec,
                     color: _tamamlananBugun >= _gunlukHedef
                         ? Colors.green
@@ -227,47 +240,51 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                   _buildActionTile(
                     context,
                     "Hatırlatıcı",
-                    _hatirlaticiSaat,
-                    Icons.notifications_active,
-                    isDarkMode,
+                    "Her gün $_hatirlaticiSaat",
+                    Icons.notifications_active_rounded,
+                    isDark,
                     onTap: _saatSec,
                   ),
-
                   _buildActionTile(
                     context,
-                    isDarkMode ? "Karanlık Mod" : "Aydınlık Mod",
-                    isDarkMode ? "Gece teması aktif" : "Gündüz teması aktif",
-                    isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                    isDarkMode,
+                    isDark ? "Karanlık Mod" : "Aydınlık Mod",
+                    isDark ? "Gece teması aktif" : "Gündüz teması aktif",
+                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    isDark,
                     onTap: () {
                       final provider = KelimeUygulamasi.of(context);
                       provider?.changeTheme(
-                        isDarkMode ? ThemeMode.light : ThemeMode.dark,
+                        isDark ? ThemeMode.light : ThemeMode.dark,
                       );
                     },
                   ),
 
-                  const SizedBox(height: 30),
-                  const Text(
-                    "TEKRAR ARALIKLARI (GÜN)",
-                    style: TextStyle(
-                      color: kAccentCopper,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+                  const SizedBox(height: 35),
+
+                  // TEKRAR ARALIKLARI BAŞLIĞI
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "  TEKRAR ARALIKLARI (GÜN)",
+                      style: GoogleFonts.montserrat(
+                        color: kAccentCopper,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
 
-                  if (_ayarlar.isEmpty)
-                    const CircularProgressIndicator(color: kAccentCopper)
-                  else
-                    Card(
-                      color: Theme.of(context).cardColor,
-                      elevation: isDarkMode ? 0 : 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(
-                          color: isDarkMode ? Colors.white10 : Colors.black12,
+                  if (_ayarlar.isNotEmpty)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.03)
+                            : Colors.black.withOpacity(0.02),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : Colors.black12,
                         ),
                       ),
                       child: Column(
@@ -276,57 +293,64 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                               ? (_ayarlar[e.key - 1] ?? 0) + 1
                               : 1;
                           int val = (e.value < min) ? min : e.value;
-                          return ListTile(
-                            title: Text(
-                              "${e.key}. Aşama",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isDarkMode ? Colors.white : kDeepNavy,
-                              ),
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
-                            subtitle: Text(
-                              "Min. $min gün sonra",
-                              style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.white54
-                                    : Colors.black54,
+                            child: ListTile(
+                              title: Text(
+                                "${e.key}. Aşama",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
+                              subtitle: Text(
+                                "Minimum $min gün sonra",
+                                style: const TextStyle(fontSize: 12),
                               ),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? kDeepNavy
-                                    : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: DropdownButton<int>(
-                                value: val,
-                                dropdownColor: Theme.of(context).cardColor,
-                                iconEnabledColor: kAccentCopper,
-                                underline: Container(),
-                                items: List.generate(366 - min, (i) => i + min)
-                                    .map((g) {
-                                      return DropdownMenuItem(
-                                        value: g,
-                                        child: Text(
-                                          "$g Gün",
-                                          style: const TextStyle(
-                                            color: kAccentCopper,
-                                            fontWeight: FontWeight.bold,
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.black26 : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: kAccentCopper.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: DropdownButton<int>(
+                                  value: val,
+                                  underline: const SizedBox(),
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: kAccentCopper,
+                                  ),
+                                  dropdownColor: Theme.of(context).cardColor,
+                                  items:
+                                      List.generate(
+                                        366 - min,
+                                        (i) => i + min,
+                                      ).map((g) {
+                                        return DropdownMenuItem(
+                                          value: g,
+                                          child: Text(
+                                            "$g Gün",
+                                            style: const TextStyle(
+                                              color: kAccentCopper,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    })
-                                    .toList(),
-                                onChanged: (v) async {
-                                  if (v != null) {
-                                    await DbHelper().ayarGuncelle(e.key, v);
-                                    _loadAllData();
-                                  }
-                                },
+                                        );
+                                      }).toList(),
+                                  onChanged: (v) async {
+                                    if (v != null) {
+                                      await DbHelper().ayarGuncelle(e.key, v);
+                                      _loadAllData();
+                                    }
+                                  },
+                                ),
                               ),
                             ),
                           );
@@ -334,8 +358,9 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                       ),
                     ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 40),
 
+                  // ÇIKIŞ BUTONU
                   ElevatedButton.icon(
                     onPressed: () => Navigator.pushAndRemoveUntil(
                       context,
@@ -344,15 +369,21 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                       ),
                       (route) => false,
                     ),
-                    icon: const Icon(Icons.logout),
-                    label: const Text("ÇIKIŞ YAP"),
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text(
+                      "GÜVENLİ ÇIKIŞ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent.withOpacity(0.1),
                       foregroundColor: Colors.redAccent,
                       elevation: 0,
-                      minimumSize: const Size(double.infinity, 60),
+                      minimumSize: const Size(double.infinity, 65),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(22),
                         side: const BorderSide(
                           color: Colors.redAccent,
                           width: 0.5,
@@ -360,7 +391,7 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
@@ -377,40 +408,44 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
     VoidCallback? onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.0 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        ),
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         leading: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(15),
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: Icon(icon, color: color, size: 24),
         ),
         title: Text(
           title,
-          style: TextStyle(
-            color: isDark ? Colors.white : kDeepNavy,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
         ),
         subtitle: Text(
           desc,
           style: TextStyle(
-            color: isDark ? Colors.white54 : Colors.black45,
+            color: Colors.grey,
             fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
         ),
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: 14,
-          color: isDark ? Colors.white24 : Colors.black26,
-        ),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
         onTap: onTap,
       ),
     );
