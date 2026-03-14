@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'dart:async';
+import 'dart:convert'; // JSON işlemleri için gerekli
 import 'package:ingilizce_ogrenme_app/models/word_model.dart';
 
 class DbHelper {
@@ -22,7 +23,7 @@ class DbHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE Kullanicilar (id INTEGER PRIMARY KEY AUTOINCREMENT, isim TEXT, email TEXT UNIQUE, sifre TEXT, dogumTarihi TEXT)',
@@ -36,12 +37,28 @@ class DbHelper {
           'CREATE TABLE Ayarlar (asama INTEGER PRIMARY KEY, gun_sayisi INTEGER)',
         );
 
+        await db.execute(
+          'CREATE TABLE quiz_results (id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT, correct INTEGER, wrong INTEGER, wrong_words TEXT, date TEXT)',
+        );
+
         List<int> varsayilanGunler = [0, 1, 7, 30, 90, 180, 365];
         for (int i = 1; i <= 6; i++) {
           await db.insert('Ayarlar', {
             'asama': i,
             'gun_sayisi': varsayilanGunler[i],
           });
+        }
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 3) {
+          await db.execute(
+            'CREATE TABLE quiz_results (id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT, correct INTEGER, wrong INTEGER, date TEXT)',
+          );
+        }
+        if (oldVersion < 4) {
+          await db.execute(
+            'ALTER TABLE quiz_results ADD COLUMN wrong_words TEXT',
+          );
         }
       },
     );
@@ -69,7 +86,6 @@ class DbHelper {
     String yeniSifre,
   ) async {
     var db = await database;
-
     List<Map<String, dynamic>> res = await db.query(
       'Kullanicilar',
       where: "email = ? AND sifre = ?",
@@ -84,29 +100,43 @@ class DbHelper {
         whereArgs: [email],
       );
       return count > 0;
-    } else {
-      return false;
     }
+    return false;
   }
 
   // --- OYUNLAR VE ÖĞRENME ---
 
-  // AGA SENİN İSTEDİĞİN METOT BURADA (SINIFIN İÇİNE ALINDI VE TABLO İSMİ DÜZELDİ)
+  Future<int> getOgrenilmisKelimeSayisi() async {
+    final db = await database;
+    return Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM Kelimeler WHERE asama = 6'),
+        ) ??
+        0;
+  }
+
+  Future<Map<String, dynamic>?> getOgrenilmisRastgeleKelime() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Kelimeler',
+      where: 'asama = 6',
+      orderBy: 'RANDOM()',
+      limit: 1,
+    );
+    return maps.isNotEmpty ? maps.first : null;
+  }
+
   Future<Map<String, dynamic>> getRandomWordByLevel(String level) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
-      'Kelimeler', // Senin tablo adın 'Kelimeler'
+      'Kelimeler',
       where: 'UPPER(level) = ?',
       whereArgs: [level.toUpperCase()],
       orderBy: 'RANDOM()',
       limit: 1,
     );
-
-    if (maps.isNotEmpty) {
-      return maps.first;
-    } else {
-      return {'word': 'EMPTY', 'meaning': 'Bu seviyede kelime bulunamadı'};
-    }
+    return maps.isNotEmpty
+        ? maps.first
+        : {'word': 'EMPTY', 'meaning': 'Kelimeler yükleniyor...'};
   }
 
   Future<List<WordModel>> rastgeleKelimeGetir(String seviye, int limit) async {
@@ -185,14 +215,12 @@ class DbHelper {
     if (id == null) return -1;
     var db = await database;
     int hedefAsama = yeniAsama > 6 ? 6 : (yeniAsama < 1 ? 1 : yeniAsama);
-
     List<Map<String, dynamic>> ayar = await db.query(
       'Ayarlar',
       where: 'asama = ?',
       whereArgs: [hedefAsama],
     );
     int eklenecekGun = ayar.isNotEmpty ? ayar.first['gun_sayisi'] as int : 1;
-
     DateTime simdi = DateTime.now();
     DateTime sonraki = simdi.add(Duration(days: eklenecekGun));
 
@@ -229,6 +257,13 @@ class DbHelper {
         ) ??
         0;
 
+    // AGA: Buraya ekran görüntüsündeki 'Başlanmadı' verisini ekledim
+    int baslanmadi =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM Kelimeler WHERE asama = 0'),
+        ) ??
+        0;
+
     List<Map<String, dynamic>> asamaDagilimiRaw = await db.rawQuery(
       'SELECT asama, COUNT(*) as adet FROM Kelimeler GROUP BY asama',
     );
@@ -237,35 +272,78 @@ class DbHelper {
       asamaDagilimi[row['asama'] as int] = row['adet'] as int;
     }
 
+    final List<Map<String, dynamic>> quizStats = await db.rawQuery(
+      'SELECT SUM(correct) as total_correct, SUM(wrong) as total_wrong FROM quiz_results',
+    );
+    int totalCorrect = quizStats[0]['total_correct'] ?? 0;
+    int totalWrong = quizStats[0]['total_wrong'] ?? 0;
+
     return {
       'toplam': toplam,
       'tamamlanan': tamamlanan,
       'devam_eden': devamEden,
+      'baslanmadi': baslanmadi,
       'asama_dagilimi': asamaDagilimi,
+      'total_correct': totalCorrect,
+      'total_wrong': totalWrong,
     };
   }
 
-  Future<Map<String, dynamic>> getSeviyeIstatistigi(String seviye) async {
-    final db = await database;
-    String s = seviye.toUpperCase();
-    int toplam =
-        Sqflite.firstIntValue(
-          await db.rawQuery(
-            'SELECT COUNT(*) FROM Kelimeler WHERE UPPER(level) = ?',
-            [s],
-          ),
-        ) ??
-        0;
-    int biten =
-        Sqflite.firstIntValue(
-          await db.rawQuery(
-            'SELECT COUNT(*) FROM Kelimeler WHERE UPPER(level) = ? AND asama = 6',
-            [s],
-          ),
-        ) ??
-        0;
-    double oran = toplam > 0 ? (biten / toplam) * 100 : 0.0;
+  // --- SINAV İŞLEMLERİ (GELİŞMİŞ) ---
 
-    return {'toplam': toplam, 'biten': biten, 'yuzde': oran};
+  Future<void> saveQuizResult(
+    String level,
+    int correct,
+    int wrong,
+    List<Map<String, String>> wrongWordsList,
+  ) async {
+    final db = await database;
+    await db.insert('quiz_results', {
+      'level': level,
+      'correct': correct,
+      'wrong': wrong,
+      'wrong_words': jsonEncode(wrongWordsList),
+      'date': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getLastFiveQuizzes() async {
+    final db = await database;
+    return await db.query('quiz_results', orderBy: 'date DESC', limit: 5);
+  }
+
+  Future<List<Map<String, dynamic>>> getQuestionsForQuiz(String level) async {
+    final db = await database;
+    final List<Map<String, dynamic>> allWords = await db.query(
+      'Kelimeler',
+      where: 'UPPER(level) = ?',
+      whereArgs: [level.toUpperCase()],
+    );
+
+    if (allWords.length < 5) return [];
+
+    List<Map<String, dynamic>> quizQuestions = [];
+    for (var word in allWords) {
+      String correct = word['meaning'] ?? "Bilinmiyor";
+      List<String> others = allWords
+          .where((w) => w['meaning'] != correct)
+          .map((w) => (w['meaning'] ?? "Hata") as String)
+          .toList();
+      others.shuffle();
+
+      List<String> options = [correct];
+      options.addAll(others.take(3));
+      options.shuffle();
+
+      quizQuestions.add({
+        'id': word['id'],
+        'question': word['word'],
+        'correct': correct,
+        'options': options,
+        'asama': word['asama'] ?? 0,
+      });
+    }
+    quizQuestions.shuffle();
+    return quizQuestions;
   }
 }

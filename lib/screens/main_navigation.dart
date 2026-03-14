@@ -6,6 +6,8 @@ import 'statistics.dart';
 import 'profile.dart';
 import 'zamana_karsi_oyun.dart';
 import 'wordle_unlimited_screen.dart';
+import 'harf_laboratuvari_screen.dart';
+import 'word_chain_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String isim;
@@ -42,7 +44,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // AKILLI RENK
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: PageView(
         controller: _pc,
         onPageChanged: (i) => setState(() => _curr = i),
@@ -56,11 +58,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _curr,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).cardColor, // AKILLI RENK
+        backgroundColor: Theme.of(context).cardColor,
         selectedItemColor: kAccentCopper,
-        unselectedItemColor: isDark
-            ? Colors.white38
-            : Colors.black38, // AKILLI RENK
+        unselectedItemColor: isDark ? Colors.white38 : Colors.black38,
         onTap: (i) => _pc.jumpToPage(i),
         items: const [
           BottomNavigationBarItem(
@@ -91,12 +91,18 @@ class OyunLobiSekmesi extends StatefulWidget {
 }
 
 class _OyunLobiSekmesiState extends State<OyunLobiSekmesi> {
-  final List<String> _levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
-  final Set<String> _selectedLevels = {'A1', 'A2', 'B1', 'B2', 'C1'};
+  // AGA: final yerine normal tanımlayalım ki state karışmasın
+  List<String> _levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
+  Set<String> _selectedLevels = {'A1', 'A2', 'B1', 'B2', 'C1'};
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // EĞER HALA NULL GÖRÜYORSA BURASI SİGORTA:
+    if (_levels == null || _selectedLevels == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return Center(
       child: Padding(
@@ -111,7 +117,7 @@ class _OyunLobiSekmesiState extends State<OyunLobiSekmesi> {
               style: GoogleFonts.montserrat(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : kDeepNavy, // AKILLI RENK
+                color: isDark ? Colors.white : kDeepNavy,
                 letterSpacing: 2,
               ),
             ),
@@ -121,6 +127,7 @@ class _OyunLobiSekmesiState extends State<OyunLobiSekmesi> {
               runSpacing: 12,
               alignment: WrapAlignment.center,
               children: _levels.map((level) {
+                // BURASI HATA VEREN YERDİ, contains öncesi null kontrolü ekledim
                 final isSelected = _selectedLevels.contains(level);
                 return FilterChip(
                   label: Text(level),
@@ -134,7 +141,7 @@ class _OyunLobiSekmesiState extends State<OyunLobiSekmesi> {
                         : (isDark ? Colors.white : kDeepNavy),
                     fontWeight: FontWeight.bold,
                   ),
-                  backgroundColor: Theme.of(context).cardColor, // AKILLI RENK
+                  backgroundColor: Theme.of(context).cardColor,
                   side: BorderSide(
                     color: isDark ? Colors.white10 : Colors.black12,
                   ),
@@ -231,14 +238,11 @@ class OyunSecimSayfasi extends StatelessWidget {
               ikon: Icons.flash_on,
               renk: Colors.blueAccent,
               onTap: () {
-                // AGA BURASI BAĞLANTI NOKTASI
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => WordleUnlimitedScreen(
-                      seciliSeviyeler:
-                          seciliSeviyeler, // Katalogdan gelen seviyeleri paslıyoruz
-                    ),
+                    builder: (context) =>
+                        WordleUnlimitedScreen(seciliSeviyeler: seciliSeviyeler),
                   ),
                 );
               },
@@ -250,7 +254,30 @@ class OyunSecimSayfasi extends StatelessWidget {
               altBaslik: "Eksik harfleri tamamlayarak ilerle.",
               ikon: Icons.biotech,
               renk: Colors.greenAccent,
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HarfLaboratuvariScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            _oyunKarti(
+              context,
+              baslik: "WORD CHAIN AI",
+              altBaslik: "5 kelimeyle yapay zeka hikayeni ve resmini çizsin!",
+              ikon: Icons.auto_awesome,
+              renk: Colors.purpleAccent,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const WordChainScreen(),
+                  ),
+                );
+              },
             ),
           ],
         ),

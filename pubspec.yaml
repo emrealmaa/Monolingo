@@ -19,6 +19,8 @@ dependencies:
   google_fonts: ^8.0.2
   flutter_native_splash: ^2.4.7
   flutter_tts: ^4.2.5
+  google_generative_ai: ^0.4.7
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
-import 'constants/constants.dart';
 import 'screens/theme_notifier.dart';
 import 'data/db_helper.dart';
 import 'models/word_model.dart';
 
 // --- BİLDİRİM İÇİN GEREKLİ OLANLAR BURADA AGA ---
 import 'data/notification_service.dart'; // Dosya yolun hangisiyse ona göre düzelt
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
 // --- KELİME VERİLERİ ---
 import 'data/A1_kelime.dart';
@@ -21,11 +18,11 @@ void main() async {
   // 1. Flutter motorunu hazırla
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- BİLDİRİM SERVİSİNİ BAŞLATAN KRİTİK KISIM BURASI ---
-  tz.initializeTimeZones(); // Timezone verilerini başlat
+  // --- BİLDİRİM SERVİSİNİ BAŞLATAN KRİTİK KISIM ---
+  // Servisi başlatıyoruz ve içindeki init fonksiyonunu bekliyoruz (await)
   final notificationService = NotificationService();
-  await notificationService.init(); // İzin penceresini bu satır tetikler!
-  // ------------------------------------------------------
+  await notificationService.init();
+  // ----------------------------------------------
 
   final db = DbHelper();
 

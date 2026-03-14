@@ -21,6 +21,7 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
   String mevcutGiris = "";
   bool yukleniyor = true;
   bool oyunBitti = false;
+  bool yetersizKelime = false; // Kilit kontrolü için
 
   int can = 3;
   int toplamPuan = 0;
@@ -48,30 +49,49 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
   Future<void> _yeniOyunHazirla() async {
     setState(() => yukleniyor = true);
     final dbHelper = DbHelper();
-    mevcutSeviye = (widget.seciliSeviyeler.toList()..shuffle()).first;
-    final kelimeVerisi = await dbHelper.getRandomWordByLevel(mevcutSeviye);
 
-    setState(() {
-      hedefKelime = _temizle(kelimeVerisi['word'].toString());
-      anlam = kelimeVerisi['meaning'] ?? "Anlam bulunamadı";
-      toplamHak = hedefKelime.length <= 3
-          ? 3
-          : (hedefKelime.length <= 5 ? 5 : 7);
-      tahminler = List.generate(toplamHak, (index) => "");
-      mevcutSatir = 0;
-      mevcutGiris = "";
-      harfJokeriHakki = 3;
-      anlamGosterilsin = false;
-      oyunBitti = false;
-      yukleniyor = false;
-    });
+    // Önce öğrenilmiş kelime var mı diye bakıyoruz
+    int ogrenilenSayisi = await dbHelper.getOgrenilmisKelimeSayisi();
+
+    if (ogrenilenSayisi < 1) {
+      setState(() {
+        yetersizKelime = true;
+        yukleniyor = false;
+      });
+      return;
+    }
+
+    // Sadece öğrenilmiş kelimelerden birini çekiyoruz
+    final kelimeVerisi = await dbHelper.getOgrenilmisRastgeleKelime();
+
+    if (kelimeVerisi != null) {
+      setState(() {
+        hedefKelime = _temizle(kelimeVerisi['word'].toString());
+        anlam = kelimeVerisi['meaning'] ?? "Anlam bulunamadı";
+        mevcutSeviye = kelimeVerisi['level'] ?? "A1";
+        toplamHak = hedefKelime.length <= 3
+            ? 3
+            : (hedefKelime.length <= 5 ? 5 : 7);
+        tahminler = List.generate(toplamHak, (index) => "");
+        mevcutSatir = 0;
+        mevcutGiris = "";
+        harfJokeriHakki = 3;
+        anlamGosterilsin = false;
+        oyunBitti = false;
+        yetersizKelime = false;
+        yukleniyor = false;
+      });
+    } else {
+      setState(() {
+        yetersizKelime = true;
+        yukleniyor = false;
+      });
+    }
   }
 
-  // --- SADECE 1 TANE RASTGELE HARF VEREN GÜNCEL JOKER ---
   void _rastgeleHarfAc() {
     if (harfJokeriHakki <= 0 || oyunBitti) return;
 
-    // Henüz doğru bilinmemiş (boş olan veya yanlış harf olan) yerleri bul
     List<int> eksikIndexler = [];
     for (int i = 0; i < hedefKelime.length; i++) {
       if (i >= mevcutGiris.length || mevcutGiris[i] != hedefKelime[i]) {
@@ -80,29 +100,21 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     }
 
     if (eksikIndexler.isNotEmpty) {
-      // Rastgele bir tanesini seç
       int secilenIndex = eksikIndexler[Random().nextInt(eksikIndexler.length)];
-
       _cezaUygula();
 
       setState(() {
         harfJokeriHakki--;
-
-        // Mevcut girişi harf harf listeye çevirip sadece o indexi güncelliyoruz
         List<String> tempGiris = List.generate(hedefKelime.length, (index) {
           if (index < mevcutGiris.length) return mevcutGiris[index];
-          return " "; // Boşluk bırakıyoruz ki index kaymasın
+          return " ";
         });
-
         tempGiris[secilenIndex] = hedefKelime[secilenIndex];
-
-        // Tekrar String'e çevir ama sondaki boşlukları temizle
         mevcutGiris = tempGiris.join('').trimRight();
       });
     }
   }
 
-  // --- AKILLI RENK ALGORİTMASI ---
   Color _getRenk(int satir, int sutun) {
     if (satir >= mevcutSatir) return Colors.transparent;
     String tahmin = tahminler[satir];
@@ -155,9 +167,7 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
 
   void _cezaUygula() {
     _shakeController.forward(from: 0);
-    setState(
-      () => toplamPuan = (toplamPuan - 15).clamp(0, 999999),
-    ); // Joker cezası 15 olsun, kıymetli kalsın
+    setState(() => toplamPuan = (toplamPuan - 15).clamp(0, 999999));
   }
 
   void _onayla() {
@@ -257,11 +267,56 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (yukleniyor)
+    if (yukleniyor) {
       return const Scaffold(
         backgroundColor: kDeepNavy,
         body: Center(child: CircularProgressIndicator(color: kAccentCopper)),
       );
+    }
+
+    if (yetersizKelime) {
+      return Scaffold(
+        backgroundColor: kDeepNavy,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, size: 80, color: kAccentCopper),
+                const SizedBox(height: 20),
+                const Text(
+                  "Kelime Haznen Yetersiz!",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Wordle oynamak için önce kelimeleri 6. aşamaya getirip öğrenmen gerekiyor. Biraz ders çalışıp gelmeye ne dersin?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAccentCopper,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Kelimelere Göz At"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: kDeepNavy,
