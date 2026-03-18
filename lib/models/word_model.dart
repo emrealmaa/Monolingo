@@ -7,6 +7,9 @@ class WordModel {
   final String example_tr;
   final String level;
   int asama;
+  // AGA: İşte yeni eklediğimiz o kritik iki değişken
+  int asama_alistirma;
+  int asama_sinav;
 
   WordModel({
     this.id,
@@ -17,10 +20,11 @@ class WordModel {
     required this.example_tr,
     required this.level,
     this.asama = 0,
+    this.asama_alistirma = 0, // Varsayılan 0
+    this.asama_sinav = 0, // Varsayılan 0
   });
 
   // Ham veriyi (Map) WordModel nesnesine çevirir
-  // Buradaki key isimleri (örn: 'example_tr') JSON dosyanla birebir aynı olmalı
   factory WordModel.fromMap(Map<String, dynamic> map) {
     return WordModel(
       id: map['id'] as int?,
@@ -28,10 +32,14 @@ class WordModel {
       meaning: map['meaning']?.toString() ?? '',
       hint: map['hint']?.toString() ?? '',
       example: map['example']?.toString() ?? '',
-      example_tr:
-          map['example_tr']?.toString() ?? '', // JSON'daki example_tr'yi okur
+      example_tr: map['example_tr']?.toString() ?? '',
       level: map['level']?.toString() ?? '',
-      asama: (map['asama'] is int) ? map['asama'] : 0, // Tip kontrolü ekledik
+      asama: (map['asama'] is int) ? map['asama'] : 0,
+      // AGA: Veritabanındaki yeni kolonları modele bağlıyoruz
+      asama_alistirma: (map['asama_alistirma'] is int)
+          ? map['asama_alistirma']
+          : 0,
+      asama_sinav: (map['asama_sinav'] is int) ? map['asama_sinav'] : 0,
     );
   }
 
@@ -46,11 +54,18 @@ class WordModel {
       'example_tr': example_tr,
       'level': level,
       'asama': asama,
+      'asama_alistirma': asama_alistirma,
+      'asama_sinav': asama_sinav,
     };
   }
 
-  // Nesneyi kopyalayıp güncellemek için (Özellikle 'asama' artırırken lazım olur)
-  WordModel copyWith({int? id, int? asama}) {
+  // Nesneyi kopyalayıp güncellemek için (Aşama takibi için hayati)
+  WordModel copyWith({
+    int? id,
+    int? asama,
+    int? asama_alistirma,
+    int? asama_sinav,
+  }) {
     return WordModel(
       id: id ?? this.id,
       word: this.word,
@@ -60,6 +75,8 @@ class WordModel {
       example_tr: this.example_tr,
       level: this.level,
       asama: asama ?? this.asama,
+      asama_alistirma: asama_alistirma ?? this.asama_alistirma,
+      asama_sinav: asama_sinav ?? this.asama_sinav,
     );
   }
 }

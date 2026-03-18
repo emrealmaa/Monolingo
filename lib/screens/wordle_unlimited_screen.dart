@@ -21,7 +21,7 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
   String mevcutGiris = "";
   bool yukleniyor = true;
   bool oyunBitti = false;
-  bool yetersizKelime = false; // Kilit kontrolü için
+  bool yetersizKelime = false;
 
   int can = 3;
   int toplamPuan = 0;
@@ -50,8 +50,10 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     setState(() => yukleniyor = true);
     final dbHelper = DbHelper();
 
-    // Önce öğrenilmiş kelime var mı diye bakıyoruz
-    int ogrenilenSayisi = await dbHelper.getOgrenilmisKelimeSayisi();
+    // AGA: Artık aktif kullanıcının öğrenilmiş kelime sayısına bakıyoruz
+    int ogrenilenSayisi = await dbHelper.getOgrenilmisKelimeSayisi(
+      aktifKullaniciId ?? 1,
+    );
 
     if (ogrenilenSayisi < 1) {
       setState(() {
@@ -61,8 +63,10 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
       return;
     }
 
-    // Sadece öğrenilmiş kelimelerden birini çekiyoruz
-    final kelimeVerisi = await dbHelper.getOgrenilmisRastgeleKelime();
+    // AGA: Sadece aktif kullanıcıya ait öğrenilmiş rastgele kelimeyi çekiyoruz
+    final kelimeVerisi = await dbHelper.getOgrenilmisRastgeleKelime(
+      aktifKullaniciId ?? 1,
+    );
 
     if (kelimeVerisi != null) {
       setState(() {

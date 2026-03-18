@@ -17,16 +17,13 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
 
   @override
   Widget build(BuildContext context) {
-    // Mevcut tema durumunu alıyoruz
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // Arka plan rengini temadan çekiyoruz aga
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // Geri dönüş okunun rengi aydınlıkta lacivert, karanlıkta bakır olsun
         iconTheme: IconThemeData(color: isDark ? kAccentCopper : kDeepNavy),
       ),
       body: SingleChildScrollView(
@@ -44,7 +41,6 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
             ),
             const SizedBox(height: 40),
 
-            // --- GİRİŞ ALANLARI ---
             _buildTextField(
               context,
               _isim,
@@ -64,13 +60,11 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
 
             const SizedBox(height: 40),
 
-            // --- KAYIT BUTONU ---
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),
                 backgroundColor: kAccentCopper,
-                foregroundColor:
-                    Colors.white, // Buton yazısı her zaman beyaz net durur
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -89,12 +83,21 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
                   'email': _email.text,
                   'sifre': _sifre.text,
                   'dogumTarihi': DateTime.now().toIso8601String(),
+                  'streak': 0,
                 };
 
                 try {
-                  await DbHelper().kayitOl(yeniKullanici);
+                  // AGA: Yeni ID'yi alıyoruz
+                  int yeniId = await DbHelper().kayitOl(yeniKullanici);
+
                   if (mounted) {
-                    _mesajGoster("Kaydın tamamlandı, giriş yapabilirsin!");
+                    // BURASI KRİTİK: Hafızaya ID'yi çaktık!
+                    aktifKullaniciId = yeniId;
+
+                    _mesajGoster("Kaydın tamamlandı, hoş geldin!");
+
+                    // Önemli: Eğer kayıt sonrası direkt giriş yapmış gibi davranmak istiyorsan
+                    // burası pop yerine ana sayfaya push da olabilir. Şimdilik pop bırakıyorum.
                     Navigator.pop(context);
                   }
                 } catch (e) {
@@ -112,7 +115,7 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
   }
 
   Widget _buildTextField(
-    BuildContext context, // Context ekledik ki temayı görsün
+    BuildContext context,
     TextEditingController controller,
     String label,
     IconData icon, {
@@ -123,9 +126,7 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
     return TextField(
       controller: controller,
       obscureText: obscure,
-      // Yazı rengini temaya göre ayarla aga
       style: TextStyle(color: isDark ? Colors.white : kDeepNavy),
-      // constants içindeki fonksiyonu kullanıyoruz
       decoration: getKInputDecoration(context).copyWith(
         labelText: label,
         prefixIcon: Icon(icon, color: kAccentCopper),
@@ -138,8 +139,7 @@ class _KayitOlSayfasiState extends State<KayitOlSayfasi> {
       SnackBar(
         content: Text(mesaj),
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            kDeepNavy, // Snackbar genelde koyu kalmalı ki uyarı olduğu anlaşılsın
+        backgroundColor: kDeepNavy,
       ),
     );
   }

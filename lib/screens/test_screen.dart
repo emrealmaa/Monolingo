@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_tts/flutter_tts.dart'; // AGA: Seslendirme için eklendi
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // AGA: Sayacı kaydetmek için eklendi
 import '../data/db_helper.dart';
 import '../models/word_model.dart';
 import '../constants/constants.dart';
@@ -20,7 +21,7 @@ class _TestEkraniState extends State<TestEkrani> {
   int _idx = 0;
   int dogruSayisi = 0;
   int yanlisSayisi = 0;
-  final FlutterTts flutterTts = FlutterTts(); // AGA: Ses motoru hazır
+  final FlutterTts flutterTts = FlutterTts();
 
   @override
   void initState() {
@@ -29,23 +30,33 @@ class _TestEkraniState extends State<TestEkrani> {
     _initTts();
   }
 
-  // AGA: Seslendirme ayarları
   void _initTts() async {
     await flutterTts.setLanguage("en-US");
     await flutterTts.setPitch(1.0);
     await flutterTts.setSpeechRate(0.5);
-    _speak(widget.liste[_idx].word); // İlk kelimeyi oku
+    if (widget.liste.isNotEmpty) {
+      _speak(widget.liste[_idx].word);
+    }
   }
 
   Future<void> _speak(String text) async {
     await flutterTts.speak(text);
   }
 
+  // AGA: Alıştırma sayısını artıran fonksiyon
+  Future<void> _alistirmaSayisiniArtir() async {
+    final prefs = await SharedPreferences.getInstance();
+    // SharedPreferences üzerinden mevcut sayıyı alıp 1 artırıyoruz
+    int mevcut = prefs.getInt('bugunku_alistirma_sayisi') ?? 0;
+    await prefs.setInt('bugunku_alistirma_sayisi', mevcut + 1);
+  }
+
   void _sonrakiKelime(bool bildiMi) async {
     final word = widget.liste[_idx];
 
-    // AGA: Artık kelimeAsamaGuncelleAlistirma metodunu çağırıyoruz
-    // Bu sayede sınav kulvarındaki asıl ilerleme (tarihler) bozulmuyor.
+    // AGA: Her cevap verildiğinde (bildi veya bilemedi fark etmez) sayacı artırıyoruz
+    await _alistirmaSayisiniArtir();
+
     if (word.id != null) {
       await DbHelper().kelimeAsamaGuncelleAlistirma(word.id!, bildiMi);
     }
@@ -60,7 +71,7 @@ class _TestEkraniState extends State<TestEkrani> {
       setState(() {
         _idx++;
       });
-      _speak(widget.liste[_idx].word); // Yeni gelen kelimeyi oku
+      _speak(widget.liste[_idx].word);
     } else {
       _sonucGoster();
     }
@@ -105,8 +116,8 @@ class _TestEkraniState extends State<TestEkrani> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
+              Navigator.pop(context); // Dialog kapat
+              Navigator.pop(context); // Test ekranından çık
             },
             child: const Text(
               "DEVAM ET",
@@ -123,6 +134,9 @@ class _TestEkraniState extends State<TestEkrani> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.liste.isEmpty)
+      return const Scaffold(body: Center(child: Text("Kelime Yok")));
+
     final word = widget.liste[_idx];
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -138,7 +152,7 @@ class _TestEkraniState extends State<TestEkrani> {
         actions: [
           IconButton(
             icon: const Icon(Icons.volume_up, color: kAccentCopper),
-            onPressed: () => _speak(word.word), // Manuel seslendirme
+            onPressed: () => _speak(word.word),
           ),
         ],
       ),
@@ -151,10 +165,7 @@ class _TestEkraniState extends State<TestEkrani> {
             minHeight: 6,
           ),
           const SizedBox(height: 20),
-
-          // AGA: Buradaki aşama artık alıştırma aşamasını (asama_alistirma) temsil ediyor
           _buildAlistirmaBadge(word.asama),
-
           Expanded(
             child: Center(
               child: Padding(
@@ -166,7 +177,6 @@ class _TestEkraniState extends State<TestEkrani> {
               ),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.all(25),
             child: Row(

@@ -175,7 +175,7 @@ class _OyunLobiSekmesiState extends State<OyunLobiSekmesi> {
             ),
             const SizedBox(height: 5),
             Text(
-              "Hangi seviyeyi çalışıoruz bu gün?",
+              "Hangi seviyeyi çalışıyoruz bu gün?",
               style: GoogleFonts.montserrat(
                 fontSize: 28,
                 fontWeight: FontWeight.w900,

@@ -1,5 +1,8 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/constants.dart';
 import '../data/db_helper.dart';
 
@@ -11,429 +14,368 @@ class HarfLaboratuvariScreen extends StatefulWidget {
 }
 
 class _HarfLaboratuvariScreenState extends State<HarfLaboratuvariScreen> {
-  String? seciliZorluk;
-  String? seciliSeviye;
-  bool oyunBasladi = false;
-  bool yukleniyor = false;
-
   String hedefKelime = "";
   String anlam = "";
-  List<String> acilanHarfler = [];
+  List<String> harfler = [];
+  List<int> seciliIndeksler = [];
+  String suankiKelime = "";
+  bool yukleniyor = true;
+  Offset? parmakPozisyonu;
+  bool cevabiGoster = false; // AGA: Pas geçince cevabı göstermek için
 
-  double oyuncuCan = 100;
-  double botCan = 100;
-  bool siraSende = true;
+  int puan = 0;
+  int can = 3;
+  List<String> topScores = [];
 
-  Future<void> _savasBaslat() async {
-    setState(() => yukleniyor = true);
+  @override
+  void initState() {
+    super.initState();
+    _loadTopScores();
+    _yeniKelimeGetir();
+  }
+
+  Future<void> _loadTopScores() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      topScores = prefs.getStringList('top_scores_lab') ?? ["0", "0", "0"];
+    });
+  }
+
+  Future<void> _checkAndSaveScore() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<int> scores = topScores.map((e) => int.parse(e)).toList();
+    scores.add(puan);
+    scores.sort((a, b) => b.compareTo(a));
+    List<String> newTop3 = scores.take(3).map((e) => e.toString()).toList();
+    await prefs.setStringList('top_scores_lab', newTop3);
+    setState(() => topScores = newTop3);
+  }
+
+  Future<void> _yeniKelimeGetir() async {
+    setState(() {
+      yukleniyor = true;
+      cevabiGoster = false;
+    });
     final dbHelper = DbHelper();
-    final kelimeVerisi = await dbHelper.getRandomWordByLevel(
-      seciliSeviye ?? "A1",
-    );
+    final kelimeVerisi = await dbHelper.getRandomWordByLevel("A1");
 
     setState(() {
       hedefKelime = kelimeVerisi['word'].toString().toUpperCase().trim();
-      anlam = kelimeVerisi['meaning'] ?? "Gizli Formül";
-      acilanHarfler = [];
-      oyuncuCan = 100;
-      botCan = 100;
-      siraSende = true;
+      anlam = kelimeVerisi['meaning'] ?? "Gizli Kelime";
+      harfler = hedefKelime.split('')..shuffle();
+      seciliIndeksler.clear();
+      suankiKelime = "";
       yukleniyor = false;
     });
   }
 
-  void _hamleYap(String harf) {
-    if (!siraSende ||
-        acilanHarfler.contains(harf) ||
-        oyuncuCan <= 0 ||
-        botCan <= 0)
-      return;
+  // AGA: Pas geçince cevabı 1 saniye gösteren mantık
+  void _pasGec() async {
+    if (can > 0) {
+      setState(() {
+        can--;
+        cevabiGoster = true;
+        suankiKelime = hedefKelime; // Kutucukları doldur
+      });
 
-    setState(() {
-      acilanHarfler.add(harf);
-      if (hedefKelime.contains(harf)) {
-        int adet = hedefKelime.split(harf).length - 1;
-        botCan = (botCan - (adet * 12)).clamp(0, 100);
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (can <= 0) {
+        _oyunBittiDialog();
       } else {
-        oyuncuCan = (oyuncuCan - 15).clamp(0, 100);
+        _yeniKelimeGetir();
       }
-      siraSende = false;
-    });
-
-    if (botCan > 0 && oyuncuCan > 0) {
-      _botunSaldirisi();
-    } else {
-      _oyunSonu(botCan <= 0);
     }
   }
 
-  void _botunSaldirisi() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    int iq = seciliZorluk == "Zor" ? 85 : (seciliZorluk == "Orta" ? 55 : 25);
-    String secim = "";
-
-    if (Random().nextInt(100) < iq) {
-      for (var c in hedefKelime.split('')) {
-        if (!acilanHarfler.contains(c)) {
-          secim = c;
-          break;
-        }
-      }
-    }
-
-    if (secim == "") {
-      secim = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Random().nextInt(26)];
-    }
-
-    setState(() {
-      if (!acilanHarfler.contains(secim)) {
-        acilanHarfler.add(secim);
-        if (hedefKelime.contains(secim)) {
-          int adet = hedefKelime.split(secim).length - 1;
-          oyuncuCan = (oyuncuCan - (adet * 12)).clamp(0, 100);
-        } else {
-          botCan = (botCan - 15).clamp(0, 100);
-        }
-      }
-      siraSende = true;
-    });
-
-    if (oyuncuCan <= 0 || botCan <= 0) _oyunSonu(botCan <= 0);
-  }
-
-  void _oyunSonu(bool kazandin) {
-    showGeneralDialog(
+  void _oyunBittiDialog() {
+    _checkAndSaveScore();
+    showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black87,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, a1, a2) => Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                kazandin ? "FINISH HIM!" : "WASTED",
-                style: TextStyle(
-                  color: kazandin ? Colors.greenAccent : Colors.red,
-                  fontSize: 50,
-                  fontWeight: FontWeight.w900,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                kazandin
-                    ? "Botu laboratuvara gömdün."
-                    : "Bot seni kimyasallarla eritti.",
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-              ),
-              const SizedBox(height: 40),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kAccentCopper,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _savasBaslat();
-                },
-                child: const Text(
-                  "TEKRAR DÜELLO",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        title: Text(
+          "LAB PATLADI! 🔥",
+          textAlign: TextAlign.center,
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.w900,
+            color: Colors.redAccent,
           ),
         ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Toplam Puanın:",
+              style: GoogleFonts.montserrat(color: Colors.grey),
+            ),
+            Text(
+              "$puan",
+              style: GoogleFonts.montserrat(
+                fontSize: 40,
+                fontWeight: FontWeight.w900,
+                color: kAccentCopper,
+              ),
+            ),
+            const Divider(),
+            ...topScores.map(
+              (s) => Text(
+                "$s Puan",
+                style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccentCopper,
+                shape: const StadiumBorder(),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  puan = 0;
+                  can = 3;
+                });
+                _yeniKelimeGetir();
+              },
+              child: const Text(
+                "TEKRAR DENE",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!oyunBasladi) return _girisEkrani();
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color textColor = isDark ? Colors.white : kDeepNavy;
+
     if (yukleniyor)
-      return const Scaffold(
-        backgroundColor: Color(0xFF0A0A0A),
-        body: Center(child: CircularProgressIndicator(color: Colors.red)),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(
+          child: CircularProgressIndicator(color: kAccentCopper),
+        ),
       );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildMortalBar(),
-            const SizedBox(height: 40),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                anlam,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white60,
-                  fontSize: 16,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildKelimeHatti(),
-            const Spacer(),
-            _buildKlavye(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMortalBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
-      child: Row(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
         children: [
-          Expanded(child: _healthBar(oyuncuCan, "YOU", true)),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              "VS",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-                fontStyle: FontStyle.italic,
-              ),
+          Positioned(
+            top: 50,
+            left: 20,
+            child: IconButton(
+              icon: Icon(Icons.help_outline, color: textColor, size: 28),
+              onPressed: _kuralGoster,
             ),
           ),
-          Expanded(child: _healthBar(botCan, "BOT", false)),
+          Positioned(
+            top: 50,
+            right: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: List.generate(
+                    3,
+                    (index) => Icon(
+                      index < can
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: Colors.redAccent,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kAccentCopper,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "SCORE: $puan",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 80),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    anlam.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                _buildWordSlots(isDark),
+                const Spacer(),
+                if (can > 0 && !cevabiGoster)
+                  TextButton.icon(
+                    onPressed: _pasGec,
+                    icon: const Icon(
+                      Icons.skip_next_rounded,
+                      color: Colors.grey,
+                    ),
+                    label: const Text(
+                      "BU KELİMEYİ PAS GEÇ (-1 CAN)",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                if (suankiKelime.isNotEmpty) _buildPreviewBaloon(),
+                const SizedBox(height: 30),
+                _buildConnectCircle(isDark),
+                const SizedBox(height: 60),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _healthBar(double can, String isim, bool left) {
-    return Column(
-      crossAxisAlignment: left
-          ? CrossAxisAlignment.start
-          : CrossAxisAlignment.end,
-      children: [
-        Text(
-          isim,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Stack(
-          children: [
-            Container(
-              height: 15,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              height: 15,
-              width: (MediaQuery.of(context).size.width * 0.38) * (can / 100),
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: left
-                        ? Colors.orangeAccent.withOpacity(0.5)
-                        : Colors.red.withOpacity(0.5),
-                    blurRadius: 10,
-                  ),
-                ],
-                gradient: LinearGradient(
-                  colors: left
-                      ? [Colors.yellow, Colors.orange]
-                      : [Colors.red, const Color(0xFF8B0000)],
-                ),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKelimeHatti() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 10,
-      alignment: WrapAlignment.center,
-      children: hedefKelime
-          .split('')
-          .map(
-            (c) => Container(
-              width: 32,
-              height: 45,
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: acilanHarfler.contains(c)
-                        ? Colors.greenAccent
-                        : Colors.white24,
-                    width: 3,
-                  ),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  acilanHarfler.contains(c) ? c : "",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  Widget _buildKlavye() {
+  Widget _buildPreviewBaloon() {
     return Container(
-      padding: const EdgeInsets.all(10),
-      color: Colors.black,
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        children: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            .split('')
-            .map(
-              (h) => GestureDetector(
-                onTap: () => _hamleYap(h),
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  width: 36,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: acilanHarfler.contains(h)
-                        ? Colors.black
-                        : const Color(0xFF1A1A1A),
-                    border: Border.all(
-                      color: acilanHarfler.contains(h)
-                          ? Colors.white10
-                          : Colors.white24,
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Center(
-                    child: Text(
-                      h,
-                      style: TextStyle(
-                        color: acilanHarfler.contains(h)
-                            ? Colors.white24
-                            : Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            )
-            .toList(),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+      decoration: BoxDecoration(
+        color: cevabiGoster ? Colors.redAccent : kAccentCopper,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: (cevabiGoster ? Colors.redAccent : kAccentCopper)
+                .withOpacity(0.3),
+            blurRadius: 15,
+          ),
+        ],
+      ),
+      child: Text(
+        suankiKelime,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 2,
+        ),
       ),
     );
   }
 
-  Widget _girisEkrani() {
-    return Scaffold(
-      backgroundColor: const Color(0xFF050505),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(25.0),
-          child: Column(
+  Widget _buildWordSlots(bool isDark) {
+    return Wrap(
+      spacing: 10,
+      alignment: WrapAlignment.center,
+      children: List.generate(hedefKelime.length, (index) {
+        bool revealed = suankiKelime.length > index;
+        return Container(
+          width: 42,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                blurRadius: 10,
+              ),
+            ],
+            border: Border.all(
+              color: revealed
+                  ? kAccentCopper
+                  : (isDark ? Colors.white10 : Colors.black12),
+            ),
+          ),
+          child: Center(
+            child: Text(
+              revealed ? suankiKelime[index] : "",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : kDeepNavy,
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildConnectCircle(bool isDark) {
+    return Center(
+      child: GestureDetector(
+        onPanUpdate: cevabiGoster
+            ? null
+            : (details) {
+                setState(() => parmakPozisyonu = details.localPosition);
+                _harfKontrol(details.localPosition);
+              },
+        onPanEnd: cevabiGoster ? null : (_) => _secimiBitir(),
+        child: Container(
+          width: 260,
+          height: 260,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.4 : 0.05),
+                blurRadius: 40,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              const SizedBox(height: 60),
-              const Icon(Icons.flash_on, size: 80, color: Colors.yellowAccent),
-              const Text(
-                "LAB DUEL",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 4,
+              CustomPaint(
+                size: const Size(260, 260),
+                painter: LinePainter(
+                  seciliIndeksler.map((idx) {
+                    double aci = (idx * 2 * pi / harfler.length) - pi / 2;
+                    return Offset(130 + 90 * cos(aci), 130 + 90 * sin(aci));
+                  }).toList(),
+                  parmakPozisyonu,
+                  kAccentCopper,
                 ),
               ),
-              const Text(
-                "CHOOSE YOUR FATE",
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-              const SizedBox(height: 50),
-              const Text(
-                "KELİME SEVİYESİ",
-                style: TextStyle(
-                  color: kAccentCopper,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                children: ["A1", "A2", "B1", "B2", "C1"]
-                    .map(
-                      (s) => ChoiceChip(
-                        label: Text(s),
-                        selected: seciliSeviye == s,
-                        onSelected: (v) => setState(() => seciliSeviye = s),
-                        selectedColor: Colors.yellowAccent,
-                        labelStyle: TextStyle(
-                          color: seciliSeviye == s
-                              ? Colors.black
-                              : Colors.white,
-                        ),
-                        backgroundColor: Colors.white10,
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                "BOT ZORLUĞU",
-                style: TextStyle(
-                  color: kAccentCopper,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _zorlukSecenek("Kolay", Colors.green),
-              _zorlukSecenek("Orta", Colors.orange),
-              _zorlukSecenek("Zor", Colors.red),
-              const SizedBox(height: 40),
-              if (seciliSeviye != null && seciliZorluk != null)
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size(double.infinity, 60),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() => oyunBasladi = true);
-                    _savasBaslat();
-                  },
-                  child: const Text(
-                    "SAVAŞA BAŞLA",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                  ),
-                ),
+              ..._buildLetterButtons(isDark),
             ],
           ),
         ),
@@ -441,16 +383,149 @@ class _HarfLaboratuvariScreenState extends State<HarfLaboratuvariScreen> {
     );
   }
 
-  Widget _zorlukSecenek(String z, Color r) {
-    return RadioListTile(
-      title: Text(
-        z,
-        style: TextStyle(color: r, fontWeight: FontWeight.bold),
+  List<Widget> _buildLetterButtons(bool isDark) {
+    return List.generate(harfler.length, (i) {
+      double aci = (i * 2 * pi / harfler.length) - pi / 2;
+      double x = 130 + 90 * cos(aci) - 25;
+      double y = 130 + 90 * sin(aci) - 25;
+      bool secili = seciliIndeksler.contains(i);
+
+      return Positioned(
+        left: x,
+        top: y,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: secili ? kAccentCopper : Theme.of(context).cardColor,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: secili
+                  ? kAccentCopper
+                  : (isDark ? Colors.white24 : Colors.black12),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: secili
+                    ? kAccentCopper.withOpacity(0.3)
+                    : Colors.transparent,
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              harfler[i],
+              style: GoogleFonts.montserrat(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: secili
+                    ? Colors.white
+                    : (isDark ? Colors.white : kDeepNavy),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  void _harfKontrol(Offset localPos) {
+    for (int i = 0; i < harfler.length; i++) {
+      double aci = (i * 2 * pi / harfler.length) - pi / 2;
+      double x = 130 + 90 * cos(aci);
+      double y = 130 + 90 * sin(aci);
+      double mesafe = sqrt(pow(x - localPos.dx, 2) + pow(y - localPos.dy, 2));
+      if (mesafe < 30 && !seciliIndeksler.contains(i)) {
+        setState(() {
+          seciliIndeksler.add(i);
+          suankiKelime += harfler[i];
+        });
+      }
+    }
+  }
+
+  void _secimiBitir() {
+    if (suankiKelime == hedefKelime) {
+      setState(() {
+        puan += (hedefKelime.length * 10);
+      });
+      _yeniKelimeGetir();
+    } else {
+      setState(() {
+        seciliIndeksler.clear();
+        suankiKelime = "";
+        parmakPozisyonu = null;
+      });
+    }
+  }
+
+  void _kuralGoster() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        title: Text(
+          "Oyun Kuralları 🧪",
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.bold,
+            color: kAccentCopper,
+          ),
+        ),
+        content: Text(
+          "• Harfleri birleştirerek gizli kelimeyi bul.\n• Bilmediğin kelimeleri PAS GEÇ butonuna basarak atlayabilirsin (-1 can).\n• Pas geçince cevap kısa süreliğine görünür.",
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white70
+                : Colors.black87,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "BAŞLAYALIM!",
+              style: TextStyle(
+                color: kAccentCopper,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
-      value: z,
-      groupValue: seciliZorluk,
-      onChanged: (v) => setState(() => seciliZorluk = v as String),
-      activeColor: r,
     );
   }
+}
+
+class LinePainter extends CustomPainter {
+  final List<Offset> points;
+  final Offset? fingerPos;
+  final Color color;
+  LinePainter(this.points, this.fingerPos, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 6.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    Path path = Path();
+    path.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+    if (fingerPos != null) {
+      path.lineTo(fingerPos!.dx, fingerPos!.dy);
+    }
+    canvas.drawShadow(path, color.withOpacity(0.5), 10, true);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(LinePainter oldDelegate) => true;
 }

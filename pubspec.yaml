@@ -20,7 +20,8 @@ dependencies:
   flutter_native_splash: ^2.4.7
   flutter_tts: ^4.2.5
   google_generative_ai: ^0.4.7
-  http: ^1.2.2 # Daha kararlı sürüm
+  http: ^1.6.0 # Daha kararlı sürüm
+  pollinations_ai: ^0.0.2
 
 dev_dependencies:
   flutter_test:

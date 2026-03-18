@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/db_helper.dart';
-import 'kayit_ol_screen.dart';
+import 'kayit_ol_screen.dart'; // Dosya ismin kayit_ol_sayfasi.dart ise ona göre düzelt kral
 import 'forgot_password_screen.dart';
 import '../constants/constants.dart';
 import 'main_navigation.dart';
@@ -30,19 +30,13 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          mesaj,
-          style: TextStyle(color: isDark ? Colors.white : Colors.white),
-        ),
-        backgroundColor: isDark
-            ? kCardNavy
-            : kDeepNavy, // Aydınlıkta da koyu snackbar daha iyi okunur
+        content: Text(mesaj, style: const TextStyle(color: Colors.white)),
+        backgroundColor: isDark ? kCardNavy : kDeepNavy,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  // ... (Giriş işlemi aynı kalıyor, bir değişiklik yok kral)
   Future<void> _loginIslemi() async {
     final email = _email.text.trim();
     final sifre = _sifre.text.trim();
@@ -54,6 +48,10 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
     try {
       final user = await DbHelper().girisYap(email, sifre);
       if (user != null && mounted) {
+        // AGA: İŞTE BURASI HAYAT KURTARAN DOKUNUŞ!
+        // Veritabanından gelen ID'yi global değişkene eşitliyoruz.
+        aktifKullaniciId = user['id'];
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -78,7 +76,6 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // AKILLI ARKA PLAN
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
@@ -100,7 +97,6 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
                 ),
                 const SizedBox(height: 40),
 
-                // INPUTLAR - context gönderiyoruz artık
                 _buildTextField(
                   context,
                   _email,
@@ -123,7 +119,6 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 55),
                     backgroundColor: kAccentCopper,
-                    // Yazı rengi aydınlık modda beyaz kalsın, bakır üstünde beyaz iyi durur
                     foregroundColor: Colors.white,
                     elevation: 5,
                     shape: RoundedRectangleBorder(
@@ -224,9 +219,7 @@ class _LoginSayfasiState extends State<LoginSayfasi> {
       controller: controller,
       obscureText: isObscure,
       keyboardType: keyboardType,
-      // Yazı rengi moda göre değişmeli yoksa aydınlıkta beyaz üstüne beyaz yazar
       style: TextStyle(color: isDark ? Colors.white : kDeepNavy),
-      // constants içindeki yeni fonksiyonu çağırdık kral
       decoration: getKInputDecoration(context).copyWith(
         labelText: label,
         prefixIcon: Icon(icon, color: kAccentCopper),

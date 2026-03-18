@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart'; // Renk için eklendi
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -39,8 +40,9 @@ class NotificationService {
         'kelime_kanali',
         'Kelime Hatırlatıcı',
         description: 'Günlük kelime tekrarı bildirimleri',
-        importance: Importance.max, // Bildirimin önceliğini bu sağlar
+        importance: Importance.max,
         playSound: true,
+        enableVibration: true,
       );
 
       await androidPlugin?.createNotificationChannel(channel);
@@ -49,19 +51,23 @@ class NotificationService {
     }
   }
 
+  // --- HATIRLATICI GÜNCELLEMESİ ---
   Future<void> hatirlaticiKur(int id, int hour, int minute) async {
     await _notificationsPlugin.zonedSchedule(
       id,
-      'Hafızayı Tazeleyelim mi?',
-      'Kelime tekrarı saatin geldi, hadi 2 dakika bakıp çıkalım.',
+      'Hafızayı Tazeleyelim mi? 🧠',
+      'Kelime tekrarı saatin geldi kral, hadi 2 dakika bakıp çıkalım.',
       _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'kelime_kanali',
           'Kelime Hatırlatıcı',
           channelDescription: 'Günlük kelime tekrarı bildirimleri',
-          importance: Importance.max, // Priority hatası veren yeri temizledim
+          importance: Importance.max,
+          priority: Priority.high,
           showWhen: true,
+          color: Color(0xFFD48166), // Senin kAccentCopper rengin
+          styleInformation: BigTextStyleInformation(''), // Uzun metin desteği
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -91,7 +97,7 @@ class NotificationService {
   Future<void> testBildirimi() async {
     await _notificationsPlugin.zonedSchedule(
       999,
-      'Test Bildirimi',
+      'Test Bildirimi 🚀',
       'Sistem çalışıyor aga, sıkıntı yok!',
       tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
       const NotificationDetails(
@@ -99,11 +105,35 @@ class NotificationService {
           'kelime_kanali',
           'Test Kanalı',
           importance: Importance.max,
+          priority: Priority.high,
+          color: Color(0xFFD48166),
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  // --- ANLIK BİLDİRİM GÜNCELLEMESİ (HEDEF TAMAM) ---
+  Future<void> anlikBildirimGonder(int id, String baslik, String icerik) async {
+    await _notificationsPlugin.show(
+      id,
+      baslik,
+      icerik,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'kelime_kanali',
+          'Hedef Bildirimleri',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          color: const Color(0xFFD48166),
+          // AGA: Bildirimin o görseldeki gibi "geniş" ve "öncelikli" durmasını sağlar
+          styleInformation: BigTextStyleInformation(icerik),
+          fullScreenIntent: false,
+        ),
+      ),
     );
   }
 }

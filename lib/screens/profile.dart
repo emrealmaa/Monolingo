@@ -31,20 +31,32 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
     _loadAllData();
   }
 
+  // AGA: Burada artık DbHelper'dan değil SharedPreferences'tan günlük alıştırma sayısını çekiyoruz
   _loadAllData() async {
     final prefs = await SharedPreferences.getInstance();
     var a = await DbHelper().ayarlariGetir();
-    var stats = await DbHelper().getGenelIstatistikler();
+
+    // AGA: Tarih kontrolü yapıp sayacı sıfırlıyoruz (Her gün taze başlasın)
+    String bugun = DateTime.now().toString().substring(0, 10);
+    String sonKayit = prefs.getString('son_alistirma_tarihi') ?? "";
+
+    if (sonKayit != bugun) {
+      await prefs.setInt('bugunku_alistirma_sayisi', 0);
+      await prefs.setString('son_alistirma_tarihi', bugun);
+    }
 
     if (mounted) {
       setState(() {
         _ayarlar = a;
-        _tamamlananBugun = stats['tamamlanan'] ?? 0;
+        _tamamlananBugun =
+            prefs.getInt('bugunku_alistirma_sayisi') ??
+            0; // AGA: Sayacı buradan aldık
         _gunlukHedef = prefs.getInt('gunlukHedef') ?? 20;
         _hatirlaticiSaat = prefs.getString('hatirlaticiSaat') ?? "20:00";
         _isLoading = false;
       });
 
+      // AGA: Eğer hedefe tam ulaşıldıysa (veya geçildiyse) bildirimi tetikliyoruz
       if (_tamamlananBugun >= _gunlukHedef) {
         _hedefTamamlandiBildirimi();
       }
@@ -124,16 +136,35 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
   void _hedefTamamlandiBildirimi() {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
+
+      // AGA: Ekrandaki SnackBar mesajı
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "🎉 Günlük $_gunlukHedef kelime hedefini tamamladın , tebrikler!",
+            _tamamlananBugun >= _gunlukHedef + 15
+                ? "🔥 Bugünü paramparça ettin kral! $_tamamlananBugun kelime nedir ya!"
+                : "🎉 Günlük $_gunlukHedef kelime hedefini tamamladın, tebrikler!",
           ),
           backgroundColor: kAccentCopper,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),
         ),
       );
+
+      // AGA: Cihaza bildirim gönderiyoruz (NotificationService üzerinden)
+      if (_tamamlananBugun == _gunlukHedef) {
+        NotificationService().anlikBildirimGonder(
+          100,
+          "HEDEF TAMAM! 🎯",
+          "Günlük hedefine ulaştın kral, durmak yok!",
+        );
+      } else if (_tamamlananBugun == _gunlukHedef + 15) {
+        NotificationService().anlikBildirimGonder(
+          101,
+          "CANAVAR MISIN BE! 🔥",
+          "Bugünü paramparça ettin, sınırları zorluyorsun!",
+        );
+      }
     });
   }
 
@@ -216,7 +247,7 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
                   ),
                   Text(
                     widget.email,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.grey,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -439,7 +470,7 @@ class _ProfilSekmesiState extends State<ProfilSekmesi> {
         ),
         subtitle: Text(
           desc,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.grey,
             fontSize: 12,
             fontWeight: FontWeight.w500,

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+// AGA: İşte tüm sistemi kurtaracak olan o meşhur global değişken.
+// Uygulama açık olduğu sürece kimin içeride olduğunu bu takip edecek.
+int? aktifKullaniciId;
+
 // --- ANA RENK PALETİ ---
 const Color kDeepNavy = Color(0xFF0F172A);
 const Color kCardNavy = Color(0xFF1E293B);
@@ -35,7 +39,6 @@ InputDecoration getKInputDecoration(BuildContext context) {
 }
 
 // --- TEXT STİLLERİ ---
-// Bunlar artık direkt 'color: Colors.white' olmamalı, temaya göre değişmeli
 TextStyle getKHeadingStyle(BuildContext context) {
   return TextStyle(
     fontSize: 24,

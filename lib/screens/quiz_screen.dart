@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:flutter_tts/flutter_tts.dart'; // AGA: Sesli okuma için şart
+import 'package:flutter_tts/flutter_tts.dart';
 import '../models/quiz_settings.dart';
 import '../data/db_helper.dart';
+// AGA: Global değişkeni kullanmak için bu import şart!
+import '../constants/constants.dart';
 
 class QuizScreen extends StatefulWidget {
   final QuizSettings settings;
@@ -22,9 +24,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int _remainingTime = 0;
   List<int?> userAnswers = [];
 
-  // AGA: Ses motoru tanımlandı
   final FlutterTts _flutterTts = FlutterTts();
-
   List<Map<String, String>> yanlisKelimeler = [];
 
   @override
@@ -33,16 +33,19 @@ class _QuizScreenState extends State<QuizScreen> {
     _initQuiz();
   }
 
-  // AGA: Seslendirme fonksiyonu (İskeleti bozmadan araya eklendi)
   Future<void> _speak(String text) async {
     await _flutterTts.setLanguage("en-US");
     await _flutterTts.setPitch(1.0);
-    await _flutterTts.setSpeechRate(0.5); // Hızı orta şeker
+    await _flutterTts.setSpeechRate(0.5);
     await _flutterTts.speak(text);
   }
 
   Future<void> _initQuiz() async {
-    final dbData = await DbHelper().getQuestionsForQuiz(widget.settings.level);
+    // AGA: Artık kimin sınavı olduğunu DbHelper'a söylüyoruz! (aktifKullaniciId eklendi)
+    final dbData = await DbHelper().getQuestionsForQuiz(
+      aktifKullaniciId ?? 1,
+      widget.settings.level,
+    );
 
     if (dbData.isEmpty) {
       if (mounted) {
@@ -63,7 +66,6 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     });
 
-    // AGA: İlk soru yüklenince oku
     if (questions.isNotEmpty) {
       _speak(questions[0]['question']);
     }
@@ -109,7 +111,6 @@ class _QuizScreenState extends State<QuizScreen> {
       Future.delayed(Duration(milliseconds: delay), () {
         if (mounted) {
           setState(() => currentQuestionIndex++);
-          // AGA: Soru değişince yeni kelimeyi oku
           _speak(questions[currentQuestionIndex]['question']);
         }
       });
@@ -121,37 +122,38 @@ class _QuizScreenState extends State<QuizScreen> {
   Future<void> _finishQuiz() async {
     _timer?.cancel();
 
+    // 1. AGA: Sınav sonucunu o kullanıcıya özel kaydediyoruz (aktifKullaniciId eklendi)
     await DbHelper().saveQuizResult(
+      aktifKullaniciId ?? 1,
       widget.settings.level,
       correctAnswers,
       wrongAnswers,
       yanlisKelimeler,
     );
 
+    // 2. KELİME BAZLI AŞAMA GÜNCELLEME
     for (int i = 0; i < questions.length; i++) {
       int? answerIndex = userAnswers[i];
       int wordId = questions[i]['id'];
-      int mevcutAsama = questions[i]['asama'] ?? 0;
 
       if (answerIndex != null && answerIndex != -1) {
         String dogruCevap = questions[i]['correct'];
         String secilenCevap = questions[i]['options'][answerIndex];
 
         if (secilenCevap == dogruCevap) {
-          await DbHelper().kelimeAsamaGuncelle(wordId, mevcutAsama + 1);
+          // Yeşil barlar artık kullanıcının bildiği kelimelere göre dolacak
+          await DbHelper().kelimeAsamaGuncelleSinav(wordId, true);
         } else {
-          await DbHelper().kelimeAsamaGuncelle(wordId, 1);
+          await DbHelper().kelimeAsamaGuncelleSinav(wordId, false);
         }
       } else {
-        await DbHelper().kelimeAsamaGuncelle(wordId, 1);
+        await DbHelper().kelimeAsamaGuncelleSinav(wordId, false);
       }
     }
 
     if (!mounted) return;
     _showResultDialog();
   }
-
-  // --- UI METODLARI (DEĞİŞMEDİ) ---
 
   void _showResultDialog() {
     showDialog(
@@ -334,7 +336,7 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _flutterTts.stop(); // AGA: Ekran kapanınca ses de sussun
+    _flutterTts.stop();
     super.dispose();
   }
 
@@ -438,9 +440,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     onPressed: currentQuestionIndex > 0
                         ? () {
                             setState(() => currentQuestionIndex--);
-                            _speak(
-                              questions[currentQuestionIndex]['question'],
-                            ); // Geri gelince de oku
+                            _speak(questions[currentQuestionIndex]['question']);
                           }
                         : null,
                     icon: const Icon(
@@ -475,9 +475,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     onPressed: currentQuestionIndex < questions.length - 1
                         ? () {
                             setState(() => currentQuestionIndex++);
-                            _speak(
-                              questions[currentQuestionIndex]['question'],
-                            ); // İleri gidince oku
+                            _speak(questions[currentQuestionIndex]['question']);
                           }
                         : null,
                     icon: const Icon(

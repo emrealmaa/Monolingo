@@ -3,9 +3,11 @@ import 'screens/login_screen.dart';
 import 'screens/theme_notifier.dart';
 import 'data/db_helper.dart';
 import 'models/word_model.dart';
+// AGA: Bu import şart, yoksa aktifKullaniciId'yi görmez
+import 'constants/constants.dart';
 
 // --- BİLDİRİM İÇİN GEREKLİ OLANLAR BURADA AGA ---
-import 'data/notification_service.dart'; // Dosya yolun hangisiyse ona göre düzelt
+import 'data/notification_service.dart';
 
 // --- KELİME VERİLERİ ---
 import 'data/A1_kelime.dart';
@@ -18,20 +20,21 @@ void main() async {
   // 1. Flutter motorunu hazırla
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- BİLDİRİM SERVİSİNİ BAŞLATAN KRİTİK KISIM ---
-  // Servisi başlatıyoruz ve içindeki init fonksiyonunu bekliyoruz (await)
+  // --- BİLDİRİM SERVİSİ ---
   final notificationService = NotificationService();
   await notificationService.init();
-  // ----------------------------------------------
 
   final db = DbHelper();
 
   // 2. Mevcut durumu kontrol et
-  var stats = await db.getGenelIstatistikler();
+  // AGA: Henüz kimse login olmadığı için varsayılan olarak '1' ID'li kullanıcıya bakıyoruz
+  // Uygulama ilk kez kurulduğunda bu kontrolü yapar.
+  var stats = await db.getGenelIstatistikler(1);
+
   print("--- MONOLINGO SİSTEM KONTROLÜ ---");
   print("Veritabanındaki Kelime Sayısı: ${stats['toplam']}");
 
-  // 3. EĞER VERİTABANI BOŞSA HER ŞEYİ YÜKLE
+  // 3. EĞER VERİTABANI BOŞSA (İLK KURULUM)
   if (stats['toplam'] == 0) {
     print("raflar boş, tüm seviyeler kamyonla geliyor...");
 
@@ -48,7 +51,8 @@ void main() async {
         .toList();
 
     if (tumKelimeler.isNotEmpty) {
-      await db.kelimeDurumlariniSenkronizeEt(tumKelimeler);
+      // AGA: İlk kurulumda kelimeleri 1 numaralı kullanıcıya (veya sisteme) senkronize ediyoruz
+      await db.kelimeDurumlariniSenkronizeEt(tumKelimeler, 1);
       print("İŞLEM TAMAM: ${tumKelimeler.length} kelime veritabanına çakıldı!");
     }
   }
@@ -78,6 +82,7 @@ class _KelimeUygulamasiState extends State<KelimeUygulamasi> {
       theme: ThemeNotifier.lightTheme,
       darkTheme: ThemeNotifier.darkTheme,
       themeMode: _themeMode,
+      // AGA: Giriş sayfasına yönlendiriyoruz
       home: const LoginSayfasi(),
     );
   }

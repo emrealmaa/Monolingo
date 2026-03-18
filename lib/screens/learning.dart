@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/db_helper.dart';
 import '../models/word_model.dart';
 import '../data/kelime_servisi.dart';
@@ -24,7 +25,7 @@ class _OgrenmeSekmesiState extends State<OgrenmeSekmesi> {
   double _quizQuestionCount = 20;
   bool _showInstantFeedback = true;
 
-  // --- LOGIC KISMI (DEĞİŞMEDİ) ---
+  // --- LOGIC KISMI ---
   void _mesajGoster(String mesaj) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -54,11 +55,20 @@ class _OgrenmeSekmesiState extends State<OgrenmeSekmesi> {
         _mesajGoster("Bu seviyede kelime bulunamadı!");
         return;
       }
-      await DbHelper().kelimeDurumlariniSenkronizeEt(hamListe);
+
+      // AGA: Senkronize ederken artık kimi senkronize ettiğimizi söylüyoruz!
+      await DbHelper().kelimeDurumlariniSenkronizeEt(
+        hamListe,
+        aktifKullaniciId ?? 1,
+      );
+
+      // AGA: Kelimeleri çekerken aktif kullanıcının sırası gelen kelimelerini çekiyoruz
       var vaktigelmisListe = await DbHelper().ogrenilecekKelimeleriGetir(
+        aktifKullaniciId ?? 1,
         _lev,
         _learningCount.toInt(),
       );
+
       if (mounted) Navigator.pop(context);
 
       if (vaktigelmisListe.isNotEmpty) {
