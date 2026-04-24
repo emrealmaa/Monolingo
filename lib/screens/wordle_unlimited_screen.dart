@@ -5,7 +5,12 @@ import '../data/db_helper.dart';
 
 class WordleUnlimitedScreen extends StatefulWidget {
   final List<String> seciliSeviyeler;
-  const WordleUnlimitedScreen({super.key, required this.seciliSeviyeler});
+  final bool isDemoMode; // YENİ: Demo mod flag'i
+  const WordleUnlimitedScreen({
+    super.key,
+    required this.seciliSeviyeler,
+    this.isDemoMode = false, // Varsayılan olarak false
+  });
 
   @override
   State<WordleUnlimitedScreen> createState() => _WordleUnlimitedScreenState();
@@ -50,27 +55,33 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     setState(() => yukleniyor = true);
     final dbHelper = DbHelper();
 
-    // AGA: Artık aktif kullanıcının öğrenilmiş kelime sayısına bakıyoruz
-    int ogrenilenSayisi = await dbHelper.getOgrenilmisKelimeSayisi(
-      aktifKullaniciId ?? 1,
-    );
+    Map<String, dynamic>? kelimeVerisi;
 
-    if (ogrenilenSayisi < 1) {
-      setState(() {
-        yetersizKelime = true;
-        yukleniyor = false;
-      });
-      return;
+    if (widget.isDemoMode) {
+      // ✅ DEMO MOD: Öğrenilip öğrenilmediğine bakmadan tüm kelimelerden rastgele seç
+      kelimeVerisi = await dbHelper.getDemoRastgeleKelime();
+    } else {
+      // NORMAL MOD: Sadece öğrenilmiş kelimeleri kullan
+      int ogrenilenSayisi = await dbHelper.getOgrenilmisKelimeSayisi(
+        aktifKullaniciId ?? 1,
+      );
+
+      if (ogrenilenSayisi < 1) {
+        setState(() {
+          yetersizKelime = true;
+          yukleniyor = false;
+        });
+        return;
+      }
+
+      kelimeVerisi = await dbHelper.getOgrenilmisRastgeleKelime(
+        aktifKullaniciId ?? 1,
+      );
     }
-
-    // AGA: Sadece aktif kullanıcıya ait öğrenilmiş rastgele kelimeyi çekiyoruz
-    final kelimeVerisi = await dbHelper.getOgrenilmisRastgeleKelime(
-      aktifKullaniciId ?? 1,
-    );
 
     if (kelimeVerisi != null) {
       setState(() {
-        hedefKelime = _temizle(kelimeVerisi['word'].toString());
+        hedefKelime = _temizle(kelimeVerisi!['word'].toString());
         anlam = kelimeVerisi['meaning'] ?? "Anlam bulunamadı";
         mevcutSeviye = kelimeVerisi['level'] ?? "A1";
         toplamHak = hedefKelime.length <= 3
@@ -261,7 +272,6 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
             style: const TextStyle(
               color: kAccentCopper,
               fontWeight: FontWeight.bold,
-              fontSize: 18,
             ),
           ),
         ],
@@ -281,6 +291,35 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
     if (yetersizKelime) {
       return Scaffold(
         backgroundColor: kDeepNavy,
+        // YENİ: Sağ üst köşeye Demo butonu
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => WordleUnlimitedScreen(
+                      seciliSeviyeler: widget.seciliSeviyeler,
+                      isDemoMode: true, // Demo flag'i true yap
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.play_circle_outline, color: kAccentCopper),
+              label: const Text(
+                "Demo Dene",
+                style: TextStyle(
+                  color: kAccentCopper,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -332,13 +371,47 @@ class _WordleUnlimitedScreenState extends State<WordleUnlimitedScreen>
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          "PUAN: $toplamPuan",
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        // YENİ: Demo modda başlıkta "DEMO" yazısı göster
+        title: widget.isDemoMode
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kAccentCopper.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: kAccentCopper, width: 1),
+                    ),
+                    child: const Text(
+                      "DEMO",
+                      style: TextStyle(
+                        color: kAccentCopper,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "PUAN: $toplamPuan",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                "PUAN: $toplamPuan",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
         actions: [
           Stack(
             alignment: Alignment.center,

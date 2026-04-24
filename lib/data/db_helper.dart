@@ -532,5 +532,16 @@ class DbHelper {
     }
     quizQuestions.shuffle();
     return quizQuestions;
+  } // ← getQuestionsForQuiz'in kapanışı (535. satır, bu zaten var)
+
+  // Demo mod için - tüm kelimelerden rastgele 1 tane getirir
+  Future<Map<String, dynamic>?> getDemoRastgeleKelime() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Kelimeler',
+      orderBy: 'RANDOM()',
+      limit: 1,
+    );
+    return maps.isNotEmpty ? maps.first : null;
   }
-}
+} // ← class DbHelper kapanışı
