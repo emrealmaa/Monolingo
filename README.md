@@ -18,8 +18,6 @@ Uygulama, temel iskeletten çıkıp dinamik bir yapıya kavuşmuştur. Veritaban
 
 ### 🛠️ Devam Eden Çalışmalar (Roadmap)
 
-- [ ] **Wordle Oyun Entegrasyonu:** Günlük kelime tahmin oyunu modülü üzerinde çalışılıyor.
-- [ ] **İstatistik Sayfası:** Kullanıcının haftalık/aylık gelişim grafikleri.
 - [ ] **Cloud Sync:** Kullanıcı verilerinin Firebase ile bulutta yedeklenmesi.
 
 ## 🛠️ Teknik Detaylar
